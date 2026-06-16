@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+.env
+*.log
+.DS_Store
+__pycache__/
+*.pyc
+.pytest_cache/
+.wrangler/
+artifacts/
+frontend/.vercel
+deployment.json
+write_out.txt
+deploy_out.txt
+*.txt
