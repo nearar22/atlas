@@ -14,7 +14,7 @@ const GREEN = '#1f6f5c'
 const OXBLOOD = '#7c2d2d'
 const GOLD = '#b08344'
 
-// deterministic pseudo-random for stable stains, stipple and coastlines
+// deterministic pseudo-random for stable stains and stipple
 const rnd = (n: number) => {
   const x = Math.sin(n * 127.1 + 311.7) * 43758.5453
   return x - Math.floor(x)
@@ -24,18 +24,17 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const [hover, setHover] = useState<string | null>(null)
+
+  // keep latest data available to the rAF loop without re-subscribing
   const stateRef = useRef({ regions, hover, selected })
   stateRef.current = { regions, hover, selected }
 
-  // track first-seen time per coord so fresh claims animate an ink bloom in
-  const bloomRef = useRef<Map<string, number>>(new Map())
-
-  // map a pointer position to a grid coord
+  // map a pointer position to a grid coord (same math as before: pad = min(W,H)*0.085)
   const cellFromEvent = (e: React.MouseEvent): { coord: string } | null => {
-    const canvas = canvasRef.current
     const wrap = wrapRef.current
-    if (!canvas || !wrap) return null
+    if (!wrap) return null
     const rect = wrap.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) return null
     const pad = Math.min(rect.width, rect.height) * 0.085
     const gw = rect.width - pad * 2
     const gh = rect.height - pad * 2
@@ -59,42 +58,42 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
     if (!ctx) return
 
     let raf = 0
-    let t = 0
     let running = true
+    let t = 0
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-    // offscreen parchment texture, painted once per resize (expensive layered noise)
-    const texCanvas = document.createElement('canvas')
-    const texCtx = texCanvas.getContext('2d')
 
     let W = 0
     let H = 0
     let dpr = 1
 
+    // pre-rendered parchment texture (created with guaranteed non-zero size,
+    // only drawn when its width > 0)
+    const tex = document.createElement('canvas')
+    const texCtx = tex.getContext('2d')
+
     const paintParchment = () => {
-      if (!texCtx) return
-      texCanvas.width = canvas.width
-      texCanvas.height = canvas.height
+      if (!texCtx || W <= 0 || H <= 0) return
+      tex.width = Math.max(1, Math.floor(W * dpr))
+      tex.height = Math.max(1, Math.floor(H * dpr))
       texCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
       texCtx.clearRect(0, 0, W, H)
 
-      // warm parchment base gradient, deeper and more weathered
+      // warm aged vellum base
       const base = texCtx.createLinearGradient(0, 0, W, H)
-      base.addColorStop(0, '#f0e6c8')
-      base.addColorStop(0.45, '#e8d9b2')
-      base.addColorStop(0.78, '#dfcca0')
-      base.addColorStop(1, '#d4bd8a')
+      base.addColorStop(0, '#f1e7cb')
+      base.addColorStop(0.5, '#e8d9b2')
+      base.addColorStop(1, '#d8c193')
       texCtx.fillStyle = base
       texCtx.fillRect(0, 0, W, H)
 
-      // broad uneven tint blooms (sun-aged unevenness), richer and more numerous
-      for (let i = 0; i < 44; i++) {
+      // soft age blooms
+      for (let i = 0; i < 30; i++) {
         const bx = rnd(i * 3.1) * W
         const by = rnd(i * 5.7 + 2) * H
-        const br = (0.1 + rnd(i + 11) * 0.26) * Math.max(W, H)
+        const br = (0.08 + rnd(i + 11) * 0.22) * Math.max(W, H)
         const g = texCtx.createRadialGradient(bx, by, 0, bx, by, br)
         const tone = rnd(i + 31)
-        const col = tone > 0.62 ? 'rgba(176,131,68,0.16)' : tone > 0.32 ? 'rgba(124,45,45,0.09)' : 'rgba(90,64,30,0.1)'
+        const col = tone > 0.6 ? 'rgba(176,131,68,0.12)' : 'rgba(90,64,30,0.08)'
         g.addColorStop(0, col)
         g.addColorStop(1, 'rgba(176,131,68,0)')
         texCtx.fillStyle = g
@@ -103,113 +102,24 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
         texCtx.fill()
       }
 
-      // foxing: small age stains and speckles, denser and darker
-      for (let i = 0; i < 520; i++) {
+      // foxing speckle
+      for (let i = 0; i < 260; i++) {
         const sx = rnd(i * 1.7 + 4) * W
         const sy = rnd(i * 2.3 + 9) * H
-        const sr = 0.5 + rnd(i + 51) * 4.2
-        const a = 0.04 + rnd(i + 71) * 0.11
-        texCtx.fillStyle = rnd(i + 91) > 0.4 ? `rgba(120, 84, 38, ${a})` : `rgba(124, 45, 45, ${a * 0.7})`
+        const sr = 0.4 + rnd(i + 51) * 2.6
+        const a = 0.03 + rnd(i + 71) * 0.08
+        texCtx.fillStyle = `rgba(120, 84, 38, ${a})`
         texCtx.beginPath()
         texCtx.arc(sx, sy, sr, 0, Math.PI * 2)
         texCtx.fill()
       }
 
-      // larger irregular tea-stain blots with darker rims
-      for (let i = 0; i < 14; i++) {
-        const cx = rnd(i * 7.3 + 2) * W
-        const cy = rnd(i * 4.1 + 5) * H
-        const rr = 18 + rnd(i + 17) * 70
-        texCtx.save()
-        texCtx.beginPath()
-        const steps = 26
-        for (let s = 0; s <= steps; s++) {
-          const a = (s / steps) * Math.PI * 2
-          const wob = 1 + (rnd(i * 13 + s) - 0.5) * 0.5
-          const px = cx + Math.cos(a) * rr * wob
-          const py = cy + Math.sin(a) * rr * wob
-          if (s === 0) texCtx.moveTo(px, py)
-          else texCtx.lineTo(px, py)
-        }
-        texCtx.closePath()
-        texCtx.fillStyle = `rgba(120, 82, 40, ${0.04 + rnd(i + 4) * 0.05})`
-        texCtx.fill()
-        texCtx.strokeStyle = `rgba(96, 64, 30, ${0.07 + rnd(i + 9) * 0.06})`
-        texCtx.lineWidth = 1.4
-        texCtx.stroke()
-        texCtx.restore()
-      }
-
-      // darker water-stain rings near the edges, more visible
-      for (let i = 0; i < 11; i++) {
-        const ex = rnd(i * 9.2 + 1) > 0.5 ? rnd(i + 3) * W * 0.3 : W - rnd(i + 3) * W * 0.3
-        const ey = rnd(i * 4.4 + 6) * H
-        const er = 30 + rnd(i + 13) * 110
-        texCtx.strokeStyle = `rgba(104, 72, 32, ${0.1 + rnd(i + 2) * 0.1})`
-        texCtx.lineWidth = 2 + rnd(i + 8) * 4
-        texCtx.beginPath()
-        texCtx.arc(ex, ey, er, 0, Math.PI * 2)
-        texCtx.stroke()
-      }
-
-      // creases: faint folds across the sheet
-      texCtx.strokeStyle = 'rgba(90,64,30,0.08)'
-      texCtx.lineWidth = 1.2
-      for (let i = 0; i < 3; i++) {
-        const fx = (0.28 + i * 0.22) * W + (rnd(i + 30) - 0.5) * 40
-        texCtx.beginPath()
-        texCtx.moveTo(fx, 0)
-        for (let y = 0; y <= H; y += 16) {
-          texCtx.lineTo(fx + Math.sin(y * 0.02 + i) * 6, y)
-        }
-        texCtx.stroke()
-      }
-
-      // fine fibrous grain, stronger
-      for (let i = 0; i < 1500; i++) {
-        const gx = rnd(i * 0.91 + 0.3) * W
-        const gy = rnd(i * 1.13 + 0.7) * H
-        texCtx.fillStyle = rnd(i + 5) > 0.5 ? 'rgba(255,250,235,0.08)' : 'rgba(86,60,28,0.07)'
-        texCtx.fillRect(gx, gy, 1, 1)
-      }
-
-      // paper drop-shadow: a soft dark inset lifting the chart off the desk
-      const lift = texCtx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.34, W / 2, H / 2, Math.max(W, H) * 0.62)
-      lift.addColorStop(0, 'rgba(58,42,24,0)')
-      lift.addColorStop(1, 'rgba(58,42,24,0.09)')
-      texCtx.fillStyle = lift
-      texCtx.fillRect(0, 0, W, H)
-
-      // vignette: darkened, worn edges, deeper for an aged museum look
-      const vig = texCtx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.74)
-      vig.addColorStop(0, 'rgba(58,42,24,0)')
-      vig.addColorStop(0.7, 'rgba(58,42,24,0.16)')
-      vig.addColorStop(1, 'rgba(46,32,16,0.42)')
+      // vignette
+      const vig = texCtx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.72)
+      vig.addColorStop(0, 'rgba(0,0,0,0)')
+      vig.addColorStop(1, 'rgba(60,40,18,0.26)')
       texCtx.fillStyle = vig
       texCtx.fillRect(0, 0, W, H)
-
-      // scorched, frayed edge darkening around the very rim
-      const edge = 0.045 * Math.min(W, H)
-      const eg = texCtx.createLinearGradient(0, 0, 0, edge)
-      eg.addColorStop(0, 'rgba(70,46,22,0.4)')
-      eg.addColorStop(1, 'rgba(70,46,22,0)')
-      texCtx.fillStyle = eg
-      texCtx.fillRect(0, 0, W, edge)
-      const eg2 = texCtx.createLinearGradient(0, H, 0, H - edge)
-      eg2.addColorStop(0, 'rgba(70,46,22,0.4)')
-      eg2.addColorStop(1, 'rgba(70,46,22,0)')
-      texCtx.fillStyle = eg2
-      texCtx.fillRect(0, H - edge, W, edge)
-      const eg3 = texCtx.createLinearGradient(0, 0, edge, 0)
-      eg3.addColorStop(0, 'rgba(70,46,22,0.4)')
-      eg3.addColorStop(1, 'rgba(70,46,22,0)')
-      texCtx.fillStyle = eg3
-      texCtx.fillRect(0, 0, edge, H)
-      const eg4 = texCtx.createLinearGradient(W, 0, W - edge, 0)
-      eg4.addColorStop(0, 'rgba(70,46,22,0.4)')
-      eg4.addColorStop(1, 'rgba(70,46,22,0)')
-      texCtx.fillStyle = eg4
-      texCtx.fillRect(W - edge, 0, edge, H)
     }
 
     const resize = () => {
@@ -222,972 +132,226 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       paintParchment()
     }
-    resize()
-    const ro = new ResizeObserver(resize)
-    ro.observe(wrap)
 
-    // ---- portolan rhumb-line network radiating from wind-rose hubs ----
-    const drawRhumbNetwork = (hubs: { x: number; y: number }[], drift: number) => {
-      const rays = 16
-      const reach = Math.hypot(W, H)
-      hubs.forEach((hub, hi) => {
-        const phase = Math.sin(drift * 0.01 + hi * 1.7) * 0.5 + 0.5
-        for (let k = 0; k < rays; k++) {
-          const a = (k / rays) * Math.PI * 2 + hi * 0.2
-          const isMain = k % 4 === 0
-          ctx.strokeStyle = isMain
-            ? `rgba(124,45,45,${0.12 + phase * 0.08})`
-            : `rgba(74,54,34,${0.08 + phase * 0.06})`
-          ctx.lineWidth = isMain ? 0.9 : 0.6
-          ctx.beginPath()
-          ctx.moveTo(hub.x, hub.y)
-          ctx.lineTo(hub.x + Math.cos(a) * reach, hub.y + Math.sin(a) * reach)
-          ctx.stroke()
-        }
-        // small node ring at each hub
-        ctx.strokeStyle = 'rgba(74,54,34,0.16)'
-        ctx.lineWidth = 0.8
-        ctx.beginPath()
-        ctx.arc(hub.x, hub.y, Math.min(W, H) * 0.018, 0, Math.PI * 2)
-        ctx.stroke()
-      })
-    }
-
-    // ---- faint sketched landmass + coastline hints in open frontier ----
-    const drawLandmassHint = (cx: number, cy: number, scale: number, seed: number, drift: number) => {
+    // ---- compass rose, drawn unconditionally every frame ----
+    const drawCompass = (cx: number, cy: number, r: number, rot: number) => {
       ctx.save()
       ctx.translate(cx, cy)
-      // wandering coastline blob
-      ctx.strokeStyle = 'rgba(74,54,34,0.28)'
+      ctx.rotate(rot)
+
+      ctx.strokeStyle = 'rgba(74,54,34,0.55)'
       ctx.lineWidth = 1.3
       ctx.beginPath()
-      const steps = 60
-      for (let s = 0; s <= steps; s++) {
-        const a = (s / steps) * Math.PI * 2
-        const wob = (Math.sin(a * 3 + seed) + Math.sin(a * 7 + seed * 1.7)) * scale * 0.12
-        const rr = scale + wob + Math.sin(drift * 0.01 + a) * scale * 0.02
-        const px = Math.cos(a) * rr * 1.2
-        const py = Math.sin(a) * rr * 0.78
-        if (s === 0) ctx.moveTo(px, py)
-        else ctx.lineTo(px, py)
-      }
-      ctx.closePath()
-      ctx.stroke()
-      // faint land tint
-      ctx.fillStyle = 'rgba(176,131,68,0.12)'
-      ctx.fill()
-      // a tighter inked coastline echo just inside the shore (double line)
-      ctx.strokeStyle = 'rgba(74,54,34,0.16)'
-      ctx.lineWidth = 0.7
-      ctx.beginPath()
-      for (let s = 0; s <= steps; s++) {
-        const a = (s / steps) * Math.PI * 2
-        const wob = (Math.sin(a * 3 + seed) + Math.sin(a * 7 + seed * 1.7)) * scale * 0.12
-        const rr = (scale + wob) * 0.9
-        const px = Math.cos(a) * rr * 1.2
-        const py = Math.sin(a) * rr * 0.78
-        if (s === 0) ctx.moveTo(px, py)
-        else ctx.lineTo(px, py)
-      }
-      ctx.closePath()
-      ctx.stroke()
-      // interior relief hatching (sketched hills)
-      ctx.strokeStyle = 'rgba(74,54,34,0.18)'
-      ctx.lineWidth = 0.7
-      for (let h = 0; h < 5; h++) {
-        const hy = (-0.4 + h * 0.18) * scale
-        ctx.beginPath()
-        ctx.moveTo(-scale * 0.7, hy)
-        ctx.quadraticCurveTo(0, hy - scale * 0.14, scale * 0.7, hy)
-        ctx.stroke()
-      }
-      ctx.restore()
-    }
-
-    // ---- sea serpent flourish, here be monsters ----
-    const drawSeaSerpent = (cx: number, cy: number, len: number, drift: number) => {
-      ctx.save()
-      ctx.translate(cx, cy)
-      ctx.strokeStyle = 'rgba(74,54,34,0.32)'
-      ctx.lineWidth = 2
-      ctx.lineCap = 'round'
-      const seg = 7
-      const undulate = reduced ? 0 : drift * 0.04
-      // body humps rising and dipping below an imagined waterline
-      ctx.beginPath()
-      for (let s = 0; s <= seg; s++) {
-        const px = (s / seg) * len - len / 2
-        const py = Math.sin(s * 1.1 + undulate) * len * 0.07
-        if (s === 0) ctx.moveTo(px, py)
-        else ctx.lineTo(px, py)
-      }
-      ctx.stroke()
-      // dorsal spines
-      ctx.fillStyle = 'rgba(31,111,92,0.3)'
-      for (let s = 1; s < seg; s++) {
-        const px = (s / seg) * len - len / 2
-        const py = Math.sin(s * 1.1 + undulate) * len * 0.07
-        ctx.beginPath()
-        ctx.moveTo(px - 3, py)
-        ctx.lineTo(px, py - len * 0.06)
-        ctx.lineTo(px + 3, py)
-        ctx.closePath()
-        ctx.fill()
-      }
-      // head with eye and open jaw at the leading end
-      const hx = -len / 2
-      const hy = Math.sin(undulate) * len * 0.07
-      ctx.fillStyle = 'rgba(74,54,34,0.34)'
-      ctx.beginPath()
-      ctx.ellipse(hx, hy, len * 0.09, len * 0.06, 0.3, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.fillStyle = '#f4ecd8'
-      ctx.beginPath()
-      ctx.arc(hx - len * 0.02, hy - len * 0.015, 1.4, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.restore()
-    }
-
-    // ---- whale spouting in open water ----
-    const drawWhale = (cx: number, cy: number, len: number, drift: number) => {
-      ctx.save()
-      ctx.translate(cx, cy)
-      ctx.fillStyle = 'rgba(74,54,34,0.22)'
-      ctx.strokeStyle = 'rgba(74,54,34,0.32)'
-      ctx.lineWidth = 1.4
-      // rounded back
-      ctx.beginPath()
-      ctx.moveTo(-len * 0.5, 0)
-      ctx.quadraticCurveTo(-len * 0.1, -len * 0.34, len * 0.32, -len * 0.05)
-      ctx.quadraticCurveTo(len * 0.42, 0, len * 0.5, 0)
-      ctx.stroke()
-      // tail fluke
-      ctx.beginPath()
-      ctx.moveTo(len * 0.42, -len * 0.02)
-      ctx.lineTo(len * 0.56, -len * 0.18)
-      ctx.lineTo(len * 0.52, 0)
-      ctx.lineTo(len * 0.56, len * 0.16)
-      ctx.closePath()
-      ctx.fill()
-      // spout, drifting puff
-      const puff = reduced ? 0 : Math.sin(drift * 0.05) * 2
-      ctx.strokeStyle = 'rgba(31,111,92,0.3)'
-      ctx.beginPath()
-      ctx.moveTo(-len * 0.34, -len * 0.18)
-      ctx.quadraticCurveTo(-len * 0.42 + puff, -len * 0.4, -len * 0.3, -len * 0.5)
-      ctx.moveTo(-len * 0.34, -len * 0.18)
-      ctx.quadraticCurveTo(-len * 0.26 - puff, -len * 0.4, -len * 0.36, -len * 0.5)
-      ctx.stroke()
-      ctx.restore()
-    }
-
-    // ---- galleon under sail in open water ----
-    const drawGalleon = (cx: number, cy: number, s: number, drift: number) => {
-      ctx.save()
-      ctx.translate(cx, cy)
-      const bob = reduced ? 0 : Math.sin(drift * 0.03) * 2
-      ctx.translate(0, bob)
-      ctx.rotate(reduced ? 0 : Math.sin(drift * 0.02) * 0.04)
-      ctx.strokeStyle = 'rgba(74,54,34,0.34)'
-      ctx.fillStyle = 'rgba(74,54,34,0.2)'
-      ctx.lineWidth = 1.4
-      // hull
-      ctx.beginPath()
-      ctx.moveTo(-s, 0)
-      ctx.quadraticCurveTo(-s * 0.6, s * 0.5, s * 0.7, s * 0.42)
-      ctx.quadraticCurveTo(s * 0.95, s * 0.3, s, 0)
-      ctx.closePath()
-      ctx.fill()
-      ctx.stroke()
-      // masts
-      ctx.beginPath()
-      ctx.moveTo(-s * 0.3, 0)
-      ctx.lineTo(-s * 0.3, -s * 0.95)
-      ctx.moveTo(s * 0.35, 0)
-      ctx.lineTo(s * 0.35, -s * 0.85)
-      ctx.stroke()
-      // sails, gently billowing
-      const bil = reduced ? 0 : Math.sin(drift * 0.04) * s * 0.04
-      ctx.fillStyle = 'rgba(251,245,230,0.55)'
-      ctx.strokeStyle = 'rgba(124,45,45,0.3)'
-      ctx.beginPath()
-      ctx.moveTo(-s * 0.3, -s * 0.9)
-      ctx.quadraticCurveTo(s * 0.05 + bil, -s * 0.55, -s * 0.3, -s * 0.18)
-      ctx.closePath()
-      ctx.fill()
+      ctx.arc(0, 0, r, 0, Math.PI * 2)
       ctx.stroke()
       ctx.beginPath()
-      ctx.moveTo(s * 0.35, -s * 0.8)
-      ctx.quadraticCurveTo(s * 0.62 + bil, -s * 0.5, s * 0.35, -s * 0.16)
-      ctx.closePath()
-      ctx.fill()
-      ctx.stroke()
-      // pennant
-      ctx.strokeStyle = 'rgba(124,45,45,0.5)'
-      ctx.beginPath()
-      ctx.moveTo(-s * 0.3, -s * 0.95)
-      ctx.lineTo(-s * 0.06 + bil, -s * 0.88)
-      ctx.lineTo(-s * 0.3, -s * 0.82)
-      ctx.stroke()
-      ctx.restore()
-    }
-
-    // ---- scale bar, leagues of an imagined survey ----
-    const drawScaleBar = (cx: number, cy: number, w: number) => {
-      ctx.save()
-      ctx.translate(cx, cy)
-      const segs = 4
-      const sw = w / segs
-      ctx.strokeStyle = 'rgba(74,54,34,0.6)'
-      ctx.lineWidth = 1
-      ctx.font = `${Math.max(7, w * 0.045)}px 'Spline Sans Mono', monospace`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'top'
-      ctx.fillStyle = 'rgba(74,54,34,0.6)'
-      for (let i = 0; i < segs; i++) {
-        ctx.fillStyle = i % 2 === 0 ? 'rgba(74,54,34,0.55)' : 'rgba(251,245,230,0.7)'
-        ctx.fillRect(i * sw, 0, sw, 5)
-        ctx.strokeRect(i * sw, 0, sw, 5)
-      }
-      ctx.strokeRect(0, 0, w, 5)
-      ctx.fillStyle = 'rgba(74,54,34,0.7)'
-      ctx.fillText('0', 0, 8)
-      ctx.fillText('250 leagues', w, 8)
-      ctx.textAlign = 'left'
-      ctx.fillText('Scale of leagues', 0, 20)
-      ctx.restore()
-    }
-
-    const drawCompass = (cx: number, cy: number, cr: number, rot: number) => {
-      ctx.save()
-      ctx.translate(cx, cy)
-      ctx.rotate(rot)
-
-      // faint illuminated halo
-      const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, cr * 1.6)
-      halo.addColorStop(0, 'rgba(176,131,68,0.28)')
-      halo.addColorStop(0.6, 'rgba(176,131,68,0.1)')
-      halo.addColorStop(1, 'rgba(176,131,68,0)')
-      ctx.fillStyle = halo
-      ctx.beginPath()
-      ctx.arc(0, 0, cr * 1.6, 0, Math.PI * 2)
-      ctx.fill()
-
-      ctx.strokeStyle = SEPIA
-      ctx.lineWidth = 1.6
-      ctx.beginPath()
-      ctx.arc(0, 0, cr, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.lineWidth = 1.1
-      ctx.beginPath()
-      ctx.arc(0, 0, cr * 0.82, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.arc(0, 0, cr * 0.66, 0, Math.PI * 2)
+      ctx.arc(0, 0, r * 0.62, 0, Math.PI * 2)
       ctx.stroke()
 
-      // tick marks around the rose
-      ctx.strokeStyle = 'rgba(74,54,34,0.7)'
-      ctx.lineWidth = 0.9
-      for (let k = 0; k < 32; k++) {
-        const a = (k / 32) * Math.PI * 2
-        const inner = k % 8 === 0 ? cr * 0.82 : cr * 0.92
-        ctx.beginPath()
-        ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner)
-        ctx.lineTo(Math.cos(a) * cr, Math.sin(a) * cr)
-        ctx.stroke()
-      }
-
-      // ordinal (diagonal) points
-      for (let k = 0; k < 4; k++) {
-        const a = (k * Math.PI) / 2 + Math.PI / 4
+      // eight points
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2
+        const long = i % 2 === 0
+        const len = long ? r : r * 0.62
         ctx.save()
         ctx.rotate(a)
         ctx.beginPath()
-        ctx.moveTo(0, -cr * 0.7)
-        ctx.lineTo(cr * 0.09, 0)
-        ctx.lineTo(0, cr * 0.14)
-        ctx.lineTo(-cr * 0.09, 0)
+        ctx.moveTo(0, 0)
+        ctx.lineTo(len * 0.16, 0)
+        ctx.lineTo(0, -len)
+        ctx.lineTo(-len * 0.16, 0)
         ctx.closePath()
-        ctx.fillStyle = 'rgba(74,54,34,0.4)'
-        ctx.fill()
-        ctx.restore()
-      }
-      // cardinal points
-      for (let k = 0; k < 4; k++) {
-        const a = (k * Math.PI) / 2
-        ctx.save()
-        ctx.rotate(a)
-        ctx.beginPath()
-        ctx.moveTo(0, -cr)
-        ctx.lineTo(cr * 0.14, 0)
-        ctx.lineTo(0, cr * 0.2)
-        ctx.lineTo(-cr * 0.14, 0)
-        ctx.closePath()
-        ctx.fillStyle = k === 0 ? OXBLOOD : 'rgba(74,54,34,0.85)'
+        ctx.fillStyle = long ? 'rgba(124,45,45,0.78)' : 'rgba(176,131,68,0.7)'
         ctx.fill()
         ctx.strokeStyle = 'rgba(74,54,34,0.6)'
-        ctx.lineWidth = 0.6
+        ctx.lineWidth = 0.8
         ctx.stroke()
         ctx.restore()
       }
-      // cardinal letters N E S W, counter-rotated to stay upright
-      const letters = ['N', 'E', 'S', 'W']
-      ctx.fillStyle = 'rgba(74,54,34,0.85)'
-      ctx.font = `700 ${Math.max(8, cr * 0.16)}px 'Cardo', serif`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      for (let k = 0; k < 4; k++) {
-        const a = (k * Math.PI) / 2
-        const lx = Math.sin(a) * cr * 1.32
-        const ly = -Math.cos(a) * cr * 1.32
-        ctx.save()
-        ctx.translate(lx, ly)
-        ctx.rotate(-rot)
-        ctx.fillStyle = k === 0 ? OXBLOOD : 'rgba(74,54,34,0.8)'
-        ctx.fillText(letters[k], 0, 0)
-        ctx.restore()
-      }
-      // gilded hub
+
       ctx.fillStyle = GOLD
       ctx.beginPath()
-      ctx.arc(0, 0, cr * 0.08, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.strokeStyle = 'rgba(124,45,45,0.6)'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.arc(0, 0, cr * 0.08, 0, Math.PI * 2)
-      ctx.stroke()
-      ctx.restore()
-    }
-
-    const drawCornerFlourish = (cx: number, cy: number, s: number, fx: number, fy: number) => {
-      // a small drawn-by-hand cartographic corner ornament
-      ctx.save()
-      ctx.translate(cx, cy)
-      ctx.scale(fx, fy)
-      ctx.strokeStyle = 'rgba(74,54,34,0.4)'
-      ctx.lineWidth = 1.1
-      ctx.beginPath()
-      ctx.moveTo(0, s)
-      ctx.quadraticCurveTo(0, 0, s, 0)
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.moveTo(s * 0.28, s * 0.28)
-      ctx.quadraticCurveTo(s * 0.28, s * 0.55, s * 0.55, s * 0.55)
-      ctx.stroke()
-      // little leaf curl
-      ctx.beginPath()
-      ctx.moveTo(s * 0.55, 0)
-      ctx.quadraticCurveTo(s * 0.78, s * 0.04, s * 0.7, s * 0.24)
-      ctx.quadraticCurveTo(s * 0.6, s * 0.1, s * 0.55, 0)
-      ctx.fillStyle = 'rgba(31,111,92,0.2)'
-      ctx.fill()
-      // a second outward acanthus scroll and gilt bud
-      ctx.strokeStyle = 'rgba(124,45,45,0.32)'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.moveTo(s * 0.08, s * 0.7)
-      ctx.quadraticCurveTo(s * 0.5, s * 0.9, s * 0.78, s * 0.62)
-      ctx.quadraticCurveTo(s * 0.55, s * 0.66, s * 0.42, s * 0.5)
-      ctx.stroke()
-      ctx.fillStyle = 'rgba(176,131,68,0.5)'
-      ctx.beginPath()
-      ctx.arc(s * 0.14, s * 0.14, s * 0.05, 0, Math.PI * 2)
+      ctx.arc(0, 0, r * 0.07, 0, Math.PI * 2)
       ctx.fill()
       ctx.restore()
-    }
 
-    // ---- ornate engraved border band running between the two frame rules ----
-    const drawEngravedBorder = (x: number, y: number, w: number, h: number, band: number) => {
+      // fixed north label (not rotating)
       ctx.save()
-      // outer + inner band rules
-      ctx.strokeStyle = 'rgba(74,54,34,0.5)'
-      ctx.lineWidth = 1.4
-      ctx.strokeRect(x, y, w, h)
-      ctx.strokeRect(x + band, y + band, w - band * 2, h - band * 2)
-
-      // running interlaced guilloche woven along the band
-      ctx.lineWidth = 0.9
-      const wave = (x0: number, y0: number, x1: number, y1: number) => {
-        const len = Math.hypot(x1 - x0, y1 - y0)
-        const ang = Math.atan2(y1 - y0, x1 - x0)
-        const reps = Math.max(4, Math.floor(len / (band * 0.9)))
-        ctx.save()
-        ctx.translate(x0, y0)
-        ctx.rotate(ang)
-        for (let pass = 0; pass < 2; pass++) {
-          ctx.strokeStyle = pass === 0 ? 'rgba(74,54,34,0.4)' : 'rgba(124,45,45,0.3)'
-          ctx.beginPath()
-          for (let s = 0; s <= reps; s++) {
-            const seg = len / reps
-            const px = s * seg
-            for (let q = 0; q <= 8; q++) {
-              const qq = q / 8
-              const xx = px + qq * seg
-              const yy = band * 0.5 + Math.sin((s + qq) * Math.PI * 2 + pass * Math.PI) * (band * 0.28)
-              if (s === 0 && q === 0) ctx.moveTo(xx, yy)
-              else ctx.lineTo(xx, yy)
-            }
-          }
-          ctx.stroke()
-        }
-        ctx.restore()
-      }
-      // four sides of the woven band
-      wave(x, y, x + w, y)
-      wave(x + w, y + h, x, y + h)
-      ctx.save()
-      ctx.translate(x, y + h)
-      ctx.rotate(-Math.PI / 2)
-      // left + right verticals reuse the same routine via rotated frames
-      ctx.restore()
-      wave(x, y + h, x, y)
-      wave(x + w, y, x + w, y + h)
-
-      // gilt studs at regular intervals along the outer rule
-      ctx.fillStyle = 'rgba(176,131,68,0.55)'
-      const studGap = band * 2.4
-      for (let sx = x; sx <= x + w; sx += studGap) {
-        ctx.beginPath(); ctx.arc(sx, y, 1.6, 0, Math.PI * 2); ctx.fill()
-        ctx.beginPath(); ctx.arc(sx, y + h, 1.6, 0, Math.PI * 2); ctx.fill()
-      }
-      for (let sy = y; sy <= y + h; sy += studGap) {
-        ctx.beginPath(); ctx.arc(x, sy, 1.6, 0, Math.PI * 2); ctx.fill()
-        ctx.beginPath(); ctx.arc(x + w, sy, 1.6, 0, Math.PI * 2); ctx.fill()
-      }
-      ctx.restore()
-    }
-
-    // ---- a wind-head (a cherub of the four winds) blowing from a corner ----
-    const drawWindHead = (cx: number, cy: number, s: number, drift: number) => {
-      ctx.save()
-      ctx.translate(cx, cy)
-      ctx.strokeStyle = 'rgba(74,54,34,0.4)'
-      ctx.fillStyle = 'rgba(176,131,68,0.1)'
-      ctx.lineWidth = 1.1
-      // cheeks / face
-      ctx.beginPath()
-      ctx.arc(0, 0, s, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.stroke()
-      // radiating cloud puffs around the face
-      ctx.strokeStyle = 'rgba(74,54,34,0.3)'
-      for (let k = 0; k < 12; k++) {
-        const a = (k / 12) * Math.PI * 2
-        ctx.beginPath()
-        ctx.arc(Math.cos(a) * s * 1.15, Math.sin(a) * s * 1.15, s * 0.28, 0, Math.PI * 2)
-        ctx.stroke()
-      }
-      // closed eyes and puffed cheeks
-      ctx.strokeStyle = 'rgba(74,54,34,0.55)'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.arc(-s * 0.34, -s * 0.18, s * 0.16, 0.1 * Math.PI, 0.9 * Math.PI)
-      ctx.arc(s * 0.34, -s * 0.18, s * 0.16, 0.1 * Math.PI, 0.9 * Math.PI)
-      ctx.stroke()
-      // pursed mouth blowing
-      ctx.beginPath()
-      ctx.arc(0, s * 0.34, s * 0.12, 0, Math.PI * 2)
-      ctx.stroke()
-      // breath gusts streaming outward, drifting
-      const g = reduced ? 0 : Math.sin(drift * 0.05) * s * 0.1
-      ctx.strokeStyle = 'rgba(31,111,92,0.3)'
-      ctx.lineWidth = 1
-      for (let r = 0; r < 3; r++) {
-        ctx.beginPath()
-        ctx.moveTo(0, s * 0.5)
-        ctx.quadraticCurveTo(s * (0.8 + r * 0.5) + g, s * (0.7 + r * 0.4), s * (1.6 + r * 0.6), s * (0.5 + r * 0.5))
-        ctx.stroke()
-      }
-      ctx.restore()
-    }
-
-    // ---- flowing calligraphic sea / ocean label ----
-    const drawSeaLabel = (cx: number, cy: number, text: string, size: number, rot: number) => {
-      ctx.save()
-      ctx.translate(cx, cy)
-      ctx.rotate(rot)
-      ctx.fillStyle = 'rgba(31,111,92,0.32)'
-      ctx.font = `italic 700 ${size}px 'Cardo', serif`
+      ctx.fillStyle = SEPIA
+      ctx.font = `600 ${Math.max(10, r * 0.26)}px Georgia, serif`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      // letter-spaced, the way engravers spread an ocean name across open water
-      const spaced = text.split('').join('\u2009')
-      ctx.fillText(spaced, 0, 0)
-      // hairline underline swash
-      ctx.strokeStyle = 'rgba(31,111,92,0.22)'
-      ctx.lineWidth = 0.8
-      const w = ctx.measureText(spaced).width
-      ctx.beginPath()
-      ctx.moveTo(-w / 2, size * 0.6)
-      ctx.quadraticCurveTo(0, size * 0.85, w / 2, size * 0.6)
-      ctx.stroke()
-      ctx.restore()
-    }
-
-    // ---- sketched mountain range (chevrons) in the open frontier ----
-    const drawMountains = (cx: number, cy: number, w: number, seed: number) => {
-      ctx.save()
-      ctx.translate(cx, cy)
-      ctx.strokeStyle = 'rgba(74,54,34,0.5)'
-      ctx.fillStyle = 'rgba(74,54,34,0.12)'
-      ctx.lineWidth = 1.1
-      const peaks = 5
-      const pw = w / peaks
-      for (let p = 0; p < peaks; p++) {
-        const ph = pw * (0.7 + rnd(seed + p) * 0.5)
-        const px = -w / 2 + p * pw + (rnd(seed + p * 2) - 0.5) * pw * 0.3
-        ctx.beginPath()
-        ctx.moveTo(px - pw * 0.6, 0)
-        ctx.lineTo(px, -ph)
-        ctx.lineTo(px + pw * 0.6, 0)
-        ctx.closePath()
-        ctx.fill()
-        ctx.stroke()
-        // shaded flank hatch
-        ctx.beginPath()
-        ctx.moveTo(px, -ph)
-        ctx.lineTo(px + pw * 0.22, -ph * 0.5)
-        ctx.stroke()
-      }
-      ctx.restore()
-    }
-
-    // ---- archipelago: a scatter of little inked islands ----
-    const drawArchipelago = (cx: number, cy: number, spread: number, seed: number) => {
-      ctx.save()
-      ctx.translate(cx, cy)
-      ctx.strokeStyle = 'rgba(74,54,34,0.3)'
-      ctx.fillStyle = 'rgba(176,131,68,0.1)'
-      ctx.lineWidth = 0.9
-      const isles = 6
-      for (let i = 0; i < isles; i++) {
-        const ix = (rnd(seed + i) - 0.5) * spread
-        const iy = (rnd(seed + i * 3 + 1) - 0.5) * spread * 0.7
-        const ir = 3 + rnd(seed + i * 5) * spread * 0.07
-        ctx.beginPath()
-        const steps = 14
-        for (let s = 0; s <= steps; s++) {
-          const a = (s / steps) * Math.PI * 2
-          const wob = 1 + (rnd(seed + i + s) - 0.5) * 0.5
-          const px = ix + Math.cos(a) * ir * wob * 1.2
-          const py = iy + Math.sin(a) * ir * wob
-          if (s === 0) ctx.moveTo(px, py)
-          else ctx.lineTo(px, py)
-        }
-        ctx.closePath()
-        ctx.fill()
-        ctx.stroke()
-        // a couple of concentric soundings around the larger isles
-        if (ir > spread * 0.05) {
-          ctx.strokeStyle = 'rgba(31,111,92,0.16)'
-          ctx.beginPath()
-          ctx.arc(ix, iy, ir * 1.8, 0, Math.PI * 2)
-          ctx.stroke()
-          ctx.strokeStyle = 'rgba(74,54,34,0.3)'
-        }
-      }
-      ctx.restore()
-    }
-
-    // ---- scattered depth-sounding numerals in open water ----
-    const drawSoundings = (count: number) => {
-      ctx.save()
-      ctx.fillStyle = 'rgba(74,54,34,0.42)'
-      ctx.font = `italic ${Math.max(7, Math.min(W, H) * 0.011)}px 'Spline Sans Mono', monospace`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      for (let i = 0; i < count; i++) {
-        const sx = rnd(i * 2.7 + 13) * W
-        const sy = rnd(i * 3.9 + 21) * H
-        const d = Math.floor(3 + rnd(i + 41) * 90)
-        ctx.fillText(String(d), sx, sy)
-        // a tiny dot marking the sounding point
-        ctx.beginPath()
-        ctx.arc(sx, sy - 6, 0.8, 0, Math.PI * 2)
-        ctx.fill()
-      }
+      ctx.fillText('N', cx, cy - r - r * 0.22)
       ctx.restore()
     }
 
     const draw = () => {
-      const pad = Math.min(W, H) * 0.085
-      const gw = W - pad * 2
-      const gh = H - pad * 2
-      const cw = gw / GRID_COLS
-      const ch = gh / GRID_ROWS
-      const reveal = reduced ? 1 : Math.min(1, t / 90)
-      const drift = reduced ? 0 : t
+      if (!running) return
+      raf = requestAnimationFrame(draw)
 
-      ctx.clearRect(0, 0, W, H)
+      // guard against zero-size canvas; try again next frame
+      if (W <= 0 || H <= 0) return
 
-      // 1. aged parchment texture (pre-rendered offscreen)
-      if (texCtx) ctx.drawImage(texCanvas, 0, 0, W, H)
+      try {
+        const data = stateRef.current
+        const pad = Math.min(W, H) * 0.085
+        const gw = W - pad * 2
+        const gh = H - pad * 2
+        const cw = gw / GRID_COLS
+        const ch = gh / GRID_ROWS
+        const drift = reduced ? 0 : t
 
-      // 2. drifting sea stipple (uncharted frontier texture)
-      ctx.fillStyle = 'rgba(31, 111, 92, 0.1)'
-      const dx = Math.sin(drift * 0.004) * 6
-      const dy = Math.cos(drift * 0.003) * 4
-      for (let i = 0; i < 720; i++) {
-        const sx = (rnd(i) * W + dx + i * 0.13) % W
-        const sy = (rnd(i + 99) * H + dy) % H
-        const r = 0.6 + rnd(i + 7) * 1.3
-        ctx.beginPath()
-        ctx.arc(sx, sy, r, 0, Math.PI * 2)
-        ctx.fill()
-      }
-
-      // faint sea swell hatch lines drifting horizontally
-      ctx.strokeStyle = 'rgba(31,111,92,0.1)'
-      ctx.lineWidth = 1
-      for (let r = 0; r < 11; r++) {
-        const yy = (r / 11) * H + Math.sin(drift * 0.01 + r) * 4
-        ctx.beginPath()
-        for (let x = 0; x <= W; x += 8) {
-          const wy = yy + Math.sin(x * 0.03 + drift * 0.02 + r * 1.3) * 3
-          if (x === 0) ctx.moveTo(x, wy)
-          else ctx.lineTo(x, wy)
+        // (1) parchment background (texture if ready, else flat fill)
+        if (tex.width > 0) {
+          ctx.drawImage(tex, 0, 0, W, H)
+        } else {
+          ctx.fillStyle = '#e8d9b2'
+          ctx.fillRect(0, 0, W, H)
         }
-        ctx.stroke()
-      }
 
-      // 3. portolan rhumb-line network radiating from two wind-rose hubs
-      drawRhumbNetwork(
-        [
-          { x: W - pad * 0.62, y: pad * 0.62 },
-          { x: pad + gw * 0.3, y: pad + gh * 0.72 },
-        ],
-        drift,
-      )
-
-      // 4. faint sketched coastlines / landmass hints in the open frontier
-      drawLandmassHint(pad + gw * 0.16, pad + gh * 0.2, Math.min(gw, gh) * 0.07, 1.3, drift)
-      drawLandmassHint(pad + gw * 0.82, pad + gh * 0.34, Math.min(gw, gh) * 0.055, 4.1, drift)
-      drawLandmassHint(pad + gw * 0.7, pad + gh * 0.82, Math.min(gw, gh) * 0.08, 7.7, drift)
-
-      // 4b. mountain ranges, an archipelago and scattered soundings
-      drawMountains(pad + gw * 0.16, pad + gh * 0.2 - Math.min(gw, gh) * 0.02, Math.min(gw, gh) * 0.14, 2.2)
-      drawMountains(pad + gw * 0.7, pad + gh * 0.82 - Math.min(gw, gh) * 0.02, Math.min(gw, gh) * 0.16, 6.4)
-      drawArchipelago(pad + gw * 0.4, pad + gh * 0.66, Math.min(gw, gh) * 0.22, 9.1)
-      drawSoundings(40)
-
-      // 4c. flowing calligraphic ocean names spread across open water
-      drawSeaLabel(pad + gw * 0.5, pad + gh * 0.12, 'Mare Incognitum', Math.max(13, Math.min(gw, gh) * 0.032), -0.04)
-      drawSeaLabel(pad + gw * 0.3, pad + gh * 0.9, 'Sea of Concord', Math.max(11, Math.min(gw, gh) * 0.026), 0.05)
-      drawSeaLabel(pad + gw * 0.86, pad + gh * 0.56, 'The Reach', Math.max(10, Math.min(gw, gh) * 0.024), 1.4)
-
-      // 5. wavering contour rings (drawn coastlines inking in)
-      ctx.strokeStyle = 'rgba(74, 54, 34, 0.2)'
-      ctx.lineWidth = 1
-      const contours = 5
-      for (let c = 0; c < contours; c++) {
-        const prog = Math.min(1, reveal * contours - c)
-        if (prog <= 0) continue
-        ctx.beginPath()
-        const baseR = Math.min(gw, gh) * (0.18 + c * 0.09)
-        const steps = 80
-        for (let s = 0; s <= steps * prog; s++) {
-          const a = (s / steps) * Math.PI * 2
-          const wob = Math.sin(a * 5 + c * 1.7 + drift * 0.01) * baseR * 0.08
-          const rr = baseR + wob
-          const px = W / 2 + Math.cos(a) * rr * 1.15
-          const py = H / 2 + Math.sin(a) * rr * 0.82
-          if (s === 0) ctx.moveTo(px, py)
-          else ctx.lineTo(px, py)
-        }
-        ctx.stroke()
-      }
-
-      // 6. inhabited open water: sea serpent, whale, and a galleon under sail
-      drawSeaSerpent(pad + gw * 0.24, pad + gh * 0.52, Math.min(gw, gh) * 0.26, drift)
-      drawWhale(pad + gw * 0.84, pad + gh * 0.7, Math.min(gw, gh) * 0.12, drift)
-      drawGalleon(pad + gw * 0.52, pad + gh * 0.28, Math.min(gw, gh) * 0.07, drift)
-
-      // 7. ornate engraved border band around the chart
-      const bw = pad * 0.34
-      drawEngravedBorder(pad * 0.42, pad * 0.42, W - pad * 0.84, H - pad * 0.84, bw)
-      const fl = Math.min(W, H) * 0.06
-      drawCornerFlourish(pad * 0.55, pad * 0.55, fl, 1, 1)
-      drawCornerFlourish(W - pad * 0.55, pad * 0.55, fl, -1, 1)
-      drawCornerFlourish(pad * 0.55, H - pad * 0.55, fl, 1, -1)
-      drawCornerFlourish(W - pad * 0.55, H - pad * 0.55, fl, -1, -1)
-      // wind-head cherub of the four winds, blowing from the lower-left
-      drawWindHead(pad * 1.15, H - pad * 1.15, Math.min(W, H) * 0.032, drift)
-
-      // 8. grid graticule
-      ctx.strokeStyle = 'rgba(74, 54, 34, 0.3)'
-      ctx.lineWidth = 1
-      const gridReveal = reduced ? 1 : Math.min(1, t / 60)
-      for (let i = 0; i <= GRID_COLS; i++) {
-        const x = pad + i * cw
-        ctx.beginPath()
-        ctx.moveTo(x, pad)
-        ctx.lineTo(x, pad + gh * gridReveal)
-        ctx.stroke()
-      }
-      for (let j = 0; j <= GRID_ROWS; j++) {
-        const y = pad + j * ch
-        ctx.beginPath()
-        ctx.moveTo(pad, y)
-        ctx.lineTo(pad + gw * gridReveal, y)
-        ctx.stroke()
-      }
-
-      // fine latitude / longitude minute-ticks along the inner frame
-      ctx.strokeStyle = 'rgba(74,54,34,0.4)'
-      ctx.lineWidth = 0.7
-      const ticks = GRID_COLS * 4
-      for (let i = 0; i <= ticks; i++) {
-        const major = i % 4 === 0
-        const tx = pad + (i / ticks) * gw
-        const tl = major ? pad * 0.16 : pad * 0.08
-        ctx.beginPath()
-        ctx.moveTo(tx, pad)
-        ctx.lineTo(tx, pad - tl)
-        ctx.moveTo(tx, pad + gh)
-        ctx.lineTo(tx, pad + gh + tl)
-        ctx.stroke()
-      }
-      const tticks = GRID_ROWS * 4
-      for (let j = 0; j <= tticks; j++) {
-        const major = j % 4 === 0
-        const ty = pad + (j / tticks) * gh
-        const tl = major ? pad * 0.16 : pad * 0.08
-        ctx.beginPath()
-        ctx.moveTo(pad, ty)
-        ctx.lineTo(pad - tl, ty)
-        ctx.moveTo(pad + gw, ty)
-        ctx.lineTo(pad + gw + tl, ty)
-        ctx.stroke()
-      }
-
-      // coordinate labels A-L, 1-12
-      ctx.fillStyle = 'rgba(74, 54, 34, 0.78)'
-      ctx.font = `600 ${Math.max(9, cw * 0.24)}px 'Spline Sans Mono', monospace`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      for (let i = 0; i < GRID_COLS; i++) {
-        ctx.fillText(String.fromCharCode(65 + i), pad + i * cw + cw / 2, pad - pad * 0.32)
-        ctx.fillText(String.fromCharCode(65 + i), pad + i * cw + cw / 2, pad + gh + pad * 0.32)
-      }
-      for (let j = 0; j < GRID_ROWS; j++) {
-        ctx.fillText(String(j + 1), pad - pad * 0.34, pad + j * ch + ch / 2)
-        ctx.fillText(String(j + 1), pad + gw + pad * 0.34, pad + j * ch + ch / 2)
-      }
-
-      // 9. claimed canon tiles, illustrated and illuminated
-      const { regions: regs, hover: hv, selected: sel } = stateRef.current
-      const claimed = new Set(regs.map((r) => r.coord))
-
-      // 8b. terra incognita: faint diagonal hatch + corner ticks on every unclaimed cell
-      ctx.save()
-      for (let col = 0; col < GRID_COLS; col++) {
-        for (let row = 0; row < GRID_ROWS; row++) {
-          const coord = String.fromCharCode(65 + col) + String(row + 1)
-          if (claimed.has(coord)) continue
-          const x = pad + col * cw
-          const y = pad + row * ch
-          // deterministic faint hatch, varied per cell so the frontier looks hand-drawn
-          const seed = col * 13.1 + row * 7.7
-          const dense = rnd(seed) > 0.55
-          ctx.strokeStyle = `rgba(74,54,34,${0.045 + rnd(seed + 2) * 0.03})`
-          ctx.lineWidth = 0.5
-          const gap = dense ? 6 : 9
-          ctx.beginPath()
-          for (let d = -ch; d < cw; d += gap) {
-            ctx.moveTo(x + d, y + ch)
-            ctx.lineTo(x + d + ch, y)
-          }
-          ctx.stroke()
-          // little corner registration ticks in the cell, very faint
-          ctx.strokeStyle = 'rgba(74,54,34,0.12)'
-          ctx.lineWidth = 0.6
-          const tk = Math.min(cw, ch) * 0.12
-          ctx.beginPath()
-          ctx.moveTo(x + 2, y + 2 + tk); ctx.lineTo(x + 2, y + 2); ctx.lineTo(x + 2 + tk, y + 2)
-          ctx.stroke()
-        }
-      }
-      ctx.restore()
-
-      const now = performance.now()
-      regs.forEach((r) => {
-        const col = r.coord.charCodeAt(0) - 65
-        const row = parseInt(r.coord.slice(1), 10) - 1
-        if (col < 0 || row < 0) return
-        const x = pad + col * cw
-        const y = pad + row * ch
-        const ccx = x + cw / 2
-        const ccy = y + ch / 2
-
-        // first time we see this coord, stamp a bloom start time
-        if (!bloomRef.current.has(r.coord)) bloomRef.current.set(r.coord, now)
-        const bloomStart = bloomRef.current.get(r.coord) as number
-        const bloom = reduced ? 1 : Math.min(1, (now - bloomStart) / 900)
-        const ease = 1 - Math.pow(1 - bloom, 3)
-
+        // gentle sea stipple inside the chart field (secondary, decorative)
         ctx.save()
-        // ink spreads outward from the centre on reveal
-        ctx.globalAlpha = ease
-        const radius = (Math.max(cw, ch) / 1.7) * ease
-
-        // illuminated glow beneath the region
-        const glow = ctx.createRadialGradient(ccx, ccy, 0, ccx, ccy, radius)
-        glow.addColorStop(0, 'rgba(176,131,68,0.30)')
-        glow.addColorStop(1, 'rgba(176,131,68,0)')
-        ctx.fillStyle = glow
-        ctx.beginPath()
-        ctx.arc(ccx, ccy, radius, 0, Math.PI * 2)
-        ctx.fill()
-
-        // inked land fill
-        ctx.fillStyle = 'rgba(31, 111, 92, 0.18)'
-        ctx.fillRect(x + 1, y + 1, cw - 2, ch - 2)
-        ctx.strokeStyle = OXBLOOD
-        ctx.lineWidth = 1.6
-        ctx.strokeRect(x + 2, y + 2, cw - 4, ch - 4)
-
-        // hill and forest hatching inside (terrain illustration)
-        ctx.strokeStyle = 'rgba(31, 111, 92, 0.3)'
-        ctx.lineWidth = 0.7
-        for (let h = 0; h < 3; h++) {
+        ctx.fillStyle = 'rgba(31,111,92,0.05)'
+        for (let i = 0; i < 70; i++) {
+          const sx = pad + rnd(i * 2.1 + 1) * gw
+          const sy = pad + rnd(i * 3.3 + 2) * gh
+          const wob = reduced ? 0 : Math.sin(drift * 0.02 + i) * 1.2
           ctx.beginPath()
-          ctx.moveTo(x + 4, y + ch * (0.3 + h * 0.22))
-          ctx.lineTo(x + cw - 4, y + ch * (0.18 + h * 0.22))
+          ctx.arc(sx + wob, sy, 0.9, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        ctx.restore()
+
+        // (2) sepia grid graticule, full 12x12, drawn at full extent immediately
+        ctx.strokeStyle = 'rgba(74, 54, 34, 0.55)'
+        ctx.lineWidth = 1
+        for (let i = 0; i <= GRID_COLS; i++) {
+          const x = pad + i * cw
+          ctx.beginPath()
+          ctx.moveTo(x, pad)
+          ctx.lineTo(x, pad + gh)
           ctx.stroke()
         }
-        // small sketched hill humps along the lower third
-        ctx.strokeStyle = 'rgba(74,54,34,0.28)'
-        ctx.lineWidth = 0.6
-        const hills = Math.max(2, Math.floor(cw / 18))
-        ctx.beginPath()
-        for (let hh = 0; hh < hills; hh++) {
-          const hx = x + 5 + (hh + 0.5) * ((cw - 10) / hills)
-          const hb = y + ch - ch * 0.26
-          ctx.moveTo(hx - cw * 0.06, hb)
-          ctx.quadraticCurveTo(hx, hb - ch * 0.12, hx + cw * 0.06, hb)
-        }
-        ctx.stroke()
-
-        // name banner across the tile
-        if (cw > 40) {
-          const by = y + ch * 0.2
-          ctx.fillStyle = 'rgba(251,245,230,0.85)'
-          ctx.fillRect(x + 3, by - ch * 0.1, cw - 6, ch * 0.2)
-          ctx.strokeStyle = 'rgba(124,45,45,0.5)'
-          ctx.lineWidth = 0.8
-          ctx.strokeRect(x + 3, by - ch * 0.1, cw - 6, ch * 0.2)
+        for (let j = 0; j <= GRID_ROWS; j++) {
+          const y = pad + j * ch
+          ctx.beginPath()
+          ctx.moveTo(pad, y)
+          ctx.lineTo(pad + gw, y)
+          ctx.stroke()
         }
 
-        // gilt illuminated initial in an ornamented gold cell
-        const capR = Math.max(9, cw * 0.2)
-        const gilt = ctx.createRadialGradient(ccx, ccy, 0, ccx, ccy, capR)
-        gilt.addColorStop(0, 'rgba(199,154,91,0.9)')
-        gilt.addColorStop(0.7, 'rgba(176,131,68,0.7)')
-        gilt.addColorStop(1, 'rgba(176,131,68,0)')
-        ctx.fillStyle = gilt
-        ctx.fillRect(ccx - capR, ccy - capR * 0.9, capR * 2, capR * 1.8)
-        ctx.strokeStyle = 'rgba(124,45,45,0.55)'
-        ctx.lineWidth = 1
-        ctx.strokeRect(ccx - capR * 0.78, ccy - capR * 0.8, capR * 1.56, capR * 1.6)
+        // chart border frame
+        ctx.strokeStyle = SEPIA
+        ctx.lineWidth = 2.2
+        ctx.strokeRect(pad, pad, gw, gh)
+
+        // (3) coordinate labels A-L across the top, 1-12 down the side
         ctx.fillStyle = SEPIA
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.font = `700 ${Math.max(11, cw * 0.36)}px 'Cardo', serif`
-        ctx.fillText(r.name.charAt(0).toUpperCase(), ccx, ccy + ch * 0.06)
-
-        // tiny region label in the banner, letter-spaced in a calligraphic hand
-        if (cw > 46) {
-          const raw = r.name.length > 13 ? r.name.slice(0, 12) + '\u2026' : r.name
-          const label = raw.split('').join('\u200a')
-          ctx.fillStyle = 'rgba(74,54,34,0.82)'
-          ctx.font = `italic 600 ${Math.max(8, cw * 0.13)}px 'Cardo', serif`
-          ctx.fillText(label, ccx, y + ch * 0.2)
+        const labelSize = Math.max(9, Math.min(cw, ch) * 0.42)
+        ctx.font = `600 ${labelSize}px Georgia, serif`
+        for (let c = 0; c < GRID_COLS; c++) {
+          const x = pad + c * cw + cw / 2
+          ctx.fillText(String.fromCharCode(65 + c), x, pad - labelSize * 0.9)
         }
-        ctx.restore()
-      })
-      // forget blooms for coords that are no longer present
-      bloomRef.current.forEach((_, key) => {
-        if (!claimed.has(key)) bloomRef.current.delete(key)
-      })
+        for (let r = 0; r < GRID_ROWS; r++) {
+          const y = pad + r * ch + ch / 2
+          ctx.fillText(String(r + 1), pad - labelSize * 1.0, y)
+        }
 
-      // 10. hover ink-bloom crosshair + selected highlight
-      const markCell = (coord: string, color: string, lw: number) => {
-        const col = coord.charCodeAt(0) - 65
-        const row = parseInt(coord.slice(1), 10) - 1
-        if (col < 0 || row < 0) return
-        const x = pad + col * cw
-        const y = pad + row * ch
-        ctx.strokeStyle = color
-        ctx.lineWidth = lw
-        ctx.strokeRect(x + 1.5, y + 1.5, cw - 3, ch - 3)
-        return { x, y }
-      }
-      if (hv && !claimed.has(hv)) {
-        const col = hv.charCodeAt(0) - 65
-        const row = parseInt(hv.slice(1), 10) - 1
-        if (col >= 0 && row >= 0) {
+        // (5) claimed CANON regions: filled green tile, oxblood border, gold glow, name
+        for (const reg of data.regions) {
+          const coord = reg.coord
+          if (!coord) continue
+          const col = coord.charCodeAt(0) - 65
+          const row = parseInt(coord.slice(1), 10) - 1
+          if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) continue
           const x = pad + col * cw
           const y = pad + row * ch
-          const ccx = x + cw / 2
-          const ccy = y + ch / 2
-          // ink bloom under cursor
-          const pulse = reduced ? 0.5 : 0.4 + Math.sin(drift * 0.12) * 0.18
-          const bg = ctx.createRadialGradient(ccx, ccy, 0, ccx, ccy, Math.max(cw, ch) * 0.7)
-          bg.addColorStop(0, `rgba(31,111,92,${0.14 * pulse + 0.05})`)
-          bg.addColorStop(1, 'rgba(31,111,92,0)')
-          ctx.fillStyle = bg
-          ctx.fillRect(x - cw, y - ch, cw * 3, ch * 3)
-          // crosshair extending to the margins
-          ctx.strokeStyle = 'rgba(31,111,92,0.4)'
-          ctx.lineWidth = 0.8
-          ctx.setLineDash([4, 4])
+
+          ctx.save()
+          // soft gold glow
+          ctx.shadowColor = 'rgba(176,131,68,0.55)'
+          ctx.shadowBlur = Math.max(6, Math.min(cw, ch) * 0.45)
+          ctx.fillStyle = 'rgba(31,111,92,0.42)'
+          ctx.fillRect(x + 1.5, y + 1.5, cw - 3, ch - 3)
+          ctx.restore()
+
+          ctx.strokeStyle = OXBLOOD
+          ctx.lineWidth = 1.8
+          ctx.strokeRect(x + 1.5, y + 1.5, cw - 3, ch - 3)
+
+          // region name, clipped to the tile
+          const name = reg.name || coord
+          ctx.save()
           ctx.beginPath()
-          ctx.moveTo(ccx, pad)
-          ctx.lineTo(ccx, pad + gh)
-          ctx.moveTo(pad, ccy)
-          ctx.lineTo(pad + gw, ccy)
-          ctx.stroke()
-          ctx.setLineDash([])
-          markCell(hv, GREEN, 2)
+          ctx.rect(x + 1, y + 1, cw - 2, ch - 2)
+          ctx.clip()
+          ctx.fillStyle = '#23150c'
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          const nameSize = Math.max(7, Math.min(cw, ch) * 0.2)
+          ctx.font = `600 ${nameSize}px Georgia, serif`
+          ctx.fillText(name, x + cw / 2, y + ch / 2, cw - 4)
+          ctx.restore()
         }
-      }
-      if (sel) markCell(sel, OXBLOOD, 2.4)
 
-      // 11. scale bar inside the lower frame margin
-      drawScaleBar(pad + gw * 0.04, pad + gh + pad * 0.5, Math.min(gw * 0.26, 180))
+        // (6) hover highlight (green) and selected highlight (oxblood) with crosshair
+        const drawCell = (coord: string, color: string, lw: number) => {
+          const col = coord.charCodeAt(0) - 65
+          const row = parseInt(coord.slice(1), 10) - 1
+          if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return
+          const x = pad + col * cw
+          const y = pad + row * ch
+          ctx.strokeStyle = color
+          ctx.lineWidth = lw
+          ctx.strokeRect(x + 1, y + 1, cw - 2, ch - 2)
+          // light crosshair across the chart
+          ctx.save()
+          ctx.strokeStyle = color
+          ctx.globalAlpha = 0.3
+          ctx.lineWidth = 1
+          ctx.beginPath()
+          ctx.moveTo(x + cw / 2, pad)
+          ctx.lineTo(x + cw / 2, pad + gh)
+          ctx.moveTo(pad, y + ch / 2)
+          ctx.lineTo(pad + gw, y + ch / 2)
+          ctx.stroke()
+          ctx.restore()
+        }
+        if (data.hover && data.hover !== data.selected) drawCell(data.hover, GREEN, 2)
+        if (data.selected) drawCell(data.selected, OXBLOOD, 2.4)
 
-      // 12. compass rose, slowly rotating, anchoring the rhumb network
-      drawCompass(W - pad * 0.62, pad * 0.62, pad * 0.42, reduced ? 0 : t * 0.0015)
+        // (4) compass rose in the bottom-right corner (slow rotation)
+        const compR = Math.max(26, Math.min(W, H) * 0.075)
+        const rot = reduced ? 0 : drift * 0.0015
+        drawCompass(W - pad * 0.55 - compR, H - pad * 0.55 - compR, compR, rot)
 
-      // 13. drifting parchment-light sheen sweeping slowly across the chart
-      if (!reduced) {
-        const sweep = ((drift * 0.12) % (W + 400)) - 200
-        const sg = ctx.createLinearGradient(sweep - 160, 0, sweep + 160, H)
-        sg.addColorStop(0, 'rgba(255,250,235,0)')
-        sg.addColorStop(0.5, 'rgba(255,250,235,0.08)')
-        sg.addColorStop(1, 'rgba(255,250,235,0)')
-        ctx.fillStyle = sg
-        ctx.fillRect(0, 0, W, H)
-      }
-
-      if (running && !reduced) {
-        t += 1
-        raf = requestAnimationFrame(draw)
+        if (!reduced) t += 1
+      } catch {
+        // on error keep the last good frame; never throw out of rAF
       }
     }
-    draw()
+
+    resize()
+    const ro = new ResizeObserver(resize)
+    ro.observe(wrap)
+
     if (reduced) {
-      t = 100
+      // single correct static frame, no loop
+      running = false
       draw()
+    } else {
+      raf = requestAnimationFrame(draw)
     }
 
     const onVis = () => {
+      if (reduced) return
       if (document.hidden) {
         running = false
         cancelAnimationFrame(raf)
-      } else if (!reduced) {
+      } else if (!running) {
         running = true
         raf = requestAnimationFrame(draw)
       }
@@ -1200,6 +364,7 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
       ro.disconnect()
       document.removeEventListener('visibilitychange', onVis)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleClick = (e: React.MouseEvent) => {
@@ -1253,7 +418,7 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
         </div>
         <div className="lk">
           <span className="swatch swatch-rhumb" />
-          Rhumb lines & soundings
+          Rhumb lines &amp; soundings
         </div>
       </div>
     </div>
