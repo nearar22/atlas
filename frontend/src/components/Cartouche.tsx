@@ -202,6 +202,7 @@ export default function Cartouche({ coord, region, wallet, onClose, onClaimed }:
               </h2>
               <div className="compass-stage">
                 <SpinningCompass />
+                <div className="wax-seal-orbit" aria-hidden="true" />
               </div>
               {STAGES.map((s, i) => (
                 <div key={i} className={`stage-row ${i <= active ? 'on' : ''}`}>
@@ -302,10 +303,22 @@ function VerdictView({
   const Icon = cls === 'canon' ? CheckCircle2 : cls === 'contested' ? AlertTriangle : XCircle
   return (
     <div className="verdict">
-      <div className={`verdict-seal ${cls}`}>
+      <motion.div
+        className={`verdict-seal ${cls}`}
+        initial={{ scale: 0.2, opacity: 0, rotate: -24 }}
+        animate={{ scale: [0.2, 1.18, 1], opacity: 1, rotate: 0 }}
+        transition={{ duration: 0.7, ease: 'easeOut', times: [0, 0.6, 1] }}
+      >
         <Icon size={40} aria-hidden="true" />
-      </div>
-      <div className="verdict-ruling">{ruling.toUpperCase()}</div>
+      </motion.div>
+      <motion.div
+        className="verdict-ruling"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45, duration: 0.4 }}
+      >
+        {ruling.toUpperCase()}
+      </motion.div>
       <div className="verdict-coh">
         {`Region ${coord} \u00b7 coherence ${coherence} / 100`}
       </div>

@@ -884,3 +884,168 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================
+   Cartographic keyframes (used by real DOM elements below)
+   ============================================================ */
+
+/* 1. compass-rotate: slow continuous rotation of an emblem */
+@keyframes compass-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 2. sea-stipple-drift: a slow tidal drift of the stipple band */
+@keyframes sea-stipple-drift {
+  0% { background-position: 0 0, 0 0; opacity: 0.5; }
+  50% { opacity: 0.85; }
+  100% { background-position: 64px 30px, -40px 22px; opacity: 0.5; }
+}
+
+/* 3. ink-bloom: ink spreading and settling */
+@keyframes ink-bloom {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Map title cartouche plate (top-centre of the chart) */
+.map-title-plate {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 9px 26px 11px;
+  background:
+    repeating-linear-gradient(135deg, rgba(31,111,92,0.05) 0 6px, transparent 6px 12px),
+    rgba(251, 245, 230, 0.9);
+  background-size: 90px 90px, auto;
+  border: 1.5px solid var(--line);
+  box-shadow: 0 8px 22px -16px rgba(58,42,24,0.6);
+  border-radius: 3px;
+  z-index: 5;
+  animation: sea-stipple-drift 18s ease-in-out infinite, ink-bloom 0.8s ease-out both;
+  pointer-events: none;
+}
+.map-title-plate::before,
+.map-title-plate::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 1.5px;
+  background: var(--line-strong);
+}
+.map-title-plate::before { left: -10px; }
+.map-title-plate::after { right: -10px; }
+.mtp-kicker {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--green-deep);
+}
+.mtp-name {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--sepia-ink);
+  line-height: 1.1;
+}
+.mtp-sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sepia-faint);
+}
+@media (max-width: 620px) {
+  .map-title-plate { display: none; }
+}
+
+/* Crafted gazetteer empty state */
+.charted-empty {
+  padding: 40px 26px;
+  text-align: center;
+}
+.empty-emblem {
+  width: 78px;
+  height: 78px;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--green-deep);
+  border: 1.5px solid var(--line);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(176,131,68,0.16), transparent 70%),
+    var(--vellum);
+  box-shadow: inset 0 0 0 5px rgba(244, 236, 216, 0.6);
+}
+.empty-emblem svg {
+  animation: compass-rotate 60s linear infinite;
+  opacity: 0.85;
+}
+.empty-kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--green-deep);
+  margin-bottom: 6px;
+}
+.empty-head {
+  font-family: var(--font-display);
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--sepia-ink);
+  margin-bottom: 12px;
+}
+.empty-lead {
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--sepia-soft);
+  max-width: 30ch;
+  margin: 0 auto 12px;
+}
+.empty-fine {
+  font-size: 13px;
+  line-height: 1.6;
+  font-style: italic;
+  color: var(--sepia-faint);
+  max-width: 32ch;
+  margin: 0 auto;
+}
+
+/* Wax-seal orbit drawn behind the spinning compass during consensus */
+.wax-seal-orbit {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px dashed rgba(124, 45, 45, 0.4);
+  animation: compass-rotate 22s linear infinite reverse;
+  pointer-events: none;
+}
+.wax-seal-orbit::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -9px;
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--oxblood-bright), var(--oxblood));
+  box-shadow: 0 0 0 2px rgba(124,45,45,0.25);
+  animation: ink-bloom 2.4s ease-in-out infinite;
+}
+.compass-stage {
+  position: relative;
+}

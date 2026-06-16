@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Compass, Copy, ExternalLink, Droplet } from 'lucide-react'
-import { CONTRACT_ADDRESS, EXPLORER, FAUCET, shortAddr } from '@/lib/contract'
+import { Compass, Copy, ExternalLink } from 'lucide-react'
+import { CONTRACT_ADDRESS, EXPLORER, shortAddr } from '@/lib/contract'
 import type { useWallet } from '@/hooks/useWallet'
 
 type Wallet = ReturnType<typeof useWallet>
@@ -51,9 +51,6 @@ export default function Header({ wallet }: { wallet: Wallet }) {
         >
           <span className="mono">{shortAddr(CONTRACT_ADDRESS)}</span>
           <ExternalLink size={12} aria-hidden="true" />
-        </a>
-        <a className="meta-link" href={FAUCET} target="_blank" rel="noreferrer">
-          <Droplet size={12} aria-hidden="true" /> Claim test GEN
         </a>
 
         <div className="wallet-wrap" ref={ref}>

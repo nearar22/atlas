@@ -1,6 +1,7 @@
 'use client'
 
-import { Map as MapIcon, ScrollText } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Compass, ScrollText } from 'lucide-react'
 import { shortAddr, type AtlasStats, type ChronicleEntry, type RegionRecord } from '@/lib/contract'
 
 interface Props {
@@ -20,6 +21,16 @@ function rulingClass(r: string): string {
   if (u === 'CANON') return 'canon'
   if (u === 'CONTESTED') return 'contested'
   return 'apocrypha'
+}
+
+// staggered reveal for gazetteer rows
+const listV = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06, delayChildren: 0.04 } },
+}
+const rowV = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 240, damping: 26 } },
 }
 
 export default function Gazetteer({
@@ -85,45 +96,87 @@ export default function Gazetteer({
           </div>
         ) : tab === 'regions' ? (
           regions.length === 0 ? (
-            <div className="empty-margin">
-              <MapIcon size={42} strokeWidth={1.2} aria-hidden="true" />
-              <p>No region has entered canon yet. Click any cell on the map to chart the first one.</p>
-            </div>
+            <motion.div
+              className="empty-margin charted-empty"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+            >
+              <div className="empty-emblem" aria-hidden="true">
+                <Compass size={44} strokeWidth={1.1} />
+              </div>
+              <div className="empty-kicker">Terra incognita</div>
+              <h3 className="empty-head">The world is unwritten</h3>
+              <p className="empty-lead">
+                No region has yet entered canon. Every coastline, every people and every
+                old road is still waiting to be drawn.
+              </p>
+              <p className="empty-fine">
+                Choose any cell on the chart to lay down the first claim. The Cartographer
+                will weigh it against its neighbours and rule it canon or send it to the
+                apocrypha.
+              </p>
+            </motion.div>
           ) : (
-            regions
-              .slice()
-              .sort((a, b) => a.coord.localeCompare(b.coord))
-              .map((r) => (
-                <button key={r.coord} className="gaz-item" onClick={() => onSelect(r.coord, r)}>
-                  <div className="gi-top">
-                    <span className="gaz-coord">{r.coord}</span>
-                    <span className={`coh canon`}>{r.coherence}</span>
-                  </div>
-                  <div className="gaz-name">{r.name}</div>
-                  <div className="gaz-lore">{r.lore}</div>
-                </button>
-              ))
+            <motion.div variants={listV} initial="hidden" animate="show">
+              {regions
+                .slice()
+                .sort((a, b) => a.coord.localeCompare(b.coord))
+                .map((r) => (
+                  <motion.button
+                    key={r.coord}
+                    variants={rowV}
+                    className="gaz-item"
+                    onClick={() => onSelect(r.coord, r)}
+                  >
+                    <div className="gi-top">
+                      <span className="gaz-coord">{r.coord}</span>
+                      <span className={`coh canon`}>{r.coherence}</span>
+                    </div>
+                    <div className="gaz-name">{r.name}</div>
+                    <div className="gaz-lore">{r.lore}</div>
+                  </motion.button>
+                ))}
+            </motion.div>
           )
         ) : chronicle.length === 0 ? (
-          <div className="empty-margin">
-            <ScrollText size={42} strokeWidth={1.2} aria-hidden="true" />
-            <p>The chronicle is empty. Every ruling, accepted or not, will be recorded here.</p>
-          </div>
-        ) : (
-          chronicle.map((c) => (
-            <div key={c.seq} className="chron-item">
-              <div className="chron-top">
-                <span className="gaz-coord">
-                  {c.coord} {c.name && <span style={{ color: 'var(--sepia-soft)', fontWeight: 400 }}>{c.name}</span>}
-                </span>
-                <span className={`ruling-tag ${rulingClass(c.ruling)}`}>{c.ruling}</span>
-              </div>
-              {c.note && <p className="chron-note">{c.note}</p>}
-              <div className="chron-meta">
-                {shortAddr(c.explorer)} {'\u00b7'} coherence {c.coherence} {'\u00b7'} #{c.seq}
-              </div>
+          <motion.div
+            className="empty-margin charted-empty"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+          >
+            <div className="empty-emblem" aria-hidden="true">
+              <ScrollText size={44} strokeWidth={1.1} />
             </div>
-          ))
+            <div className="empty-kicker">The open ledger</div>
+            <h3 className="empty-head">No rulings recorded</h3>
+            <p className="empty-lead">
+              The chronicle keeps every verdict the Cartographer hands down, whether a
+              claim is welcomed into canon or turned away.
+            </p>
+            <p className="empty-fine">
+              Once the first claim is judged, its ruling, coherence and author will be
+              inscribed here in order.
+            </p>
+          </motion.div>
+        ) : (
+          <motion.div variants={listV} initial="hidden" animate="show">
+            {chronicle.map((c) => (
+              <motion.div key={c.seq} variants={rowV} className="chron-item">
+                <div className="chron-top">
+                  <span className="gaz-coord">
+                    {c.coord} {c.name && <span style={{ color: 'var(--sepia-soft)', fontWeight: 400 }}>{c.name}</span>}
+                  </span>
+                  <span className={`ruling-tag ${rulingClass(c.ruling)}`}>{c.ruling}</span>
+                </div>
+                {c.note && <p className="chron-note">{c.note}</p>}
+                <div className="chron-meta">
+                  {shortAddr(c.explorer)} {'\u00b7'} coherence {c.coherence} {'\u00b7'} #{c.seq}
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
         )}
       </div>
     </aside>
