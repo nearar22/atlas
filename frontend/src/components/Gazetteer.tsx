@@ -133,7 +133,10 @@ export default function Gazetteer({
                       <span className="gaz-coord">{r.coord}</span>
                       <span className={`coh canon`}>{r.coherence}</span>
                     </div>
-                    <div className="gaz-name">{r.name}</div>
+                    <div className="gaz-name">
+                      <span className="gi-cap" aria-hidden="true">{r.name.charAt(0).toUpperCase()}</span>
+                      {r.name.slice(1)}
+                    </div>
                     <div className="gaz-lore">{r.lore}</div>
                   </motion.button>
                 ))}
@@ -168,7 +171,10 @@ export default function Gazetteer({
                   <span className="gaz-coord">
                     {c.coord} {c.name && <span style={{ color: 'var(--sepia-soft)', fontWeight: 400 }}>{c.name}</span>}
                   </span>
-                  <span className={`ruling-tag ${rulingClass(c.ruling)}`}>{c.ruling}</span>
+                  <span className={`ruling-tag ${rulingClass(c.ruling)}`}>
+                    {c.ruling}
+                    {rulingClass(c.ruling) === 'canon' && <span className="wax-accent" aria-hidden="true" />}
+                  </span>
                 </div>
                 {c.note && <p className="chron-note">{c.note}</p>}
                 <div className="chron-meta">

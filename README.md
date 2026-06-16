@@ -4,8 +4,8 @@
 
 This document is written as a field guide for explorers: a numbered gazetteer of the world, its map legends, the law of the cartographer, and a catalogue of every survey instrument (public method) you may call. Read it the way you would read the marginalia of an old map.
 
-- Live atlas: https://atlas-2qv.pages.dev
 - Contract on the explorer: https://explorer-bradbury.genlayer.com/address/0x2EA3a9aa16a57BD0F6f8d8ac5e20819772554a99
+- Deploy transaction: https://explorer-bradbury.genlayer.com/tx/0x28054928aa482c92fa4202bfaa41ea7c6843ac9f562e356db39499d718ba38b1
 - Full contract source: [contracts/contract.py](contracts/contract.py)
 
 ---
@@ -149,8 +149,6 @@ Status    Tile claimed; admitted to the world atlas
 
 The claim coheres with its surveyed neighbours and reads as internally consistent worldbuilding, so the cartographer ruled it CANON with a coherence of 90, validators agreed within tolerance, and the backstop confirmed 90 sits inside the CANON band. The tile F6 is now occupied and appears in `get_regions`.
 
-- Claim transaction: https://explorer-bradbury.genlayer.com/tx/0xd59d0d61e41fdd3eb42796945af27ca2f361357f78920fff5ef629f71f54be72
-
 ---
 
 ## 6. Frontend stack and UX decisions
@@ -187,7 +185,7 @@ cd frontend
 $env:CF_PAGES="1"; npm run build   # output in frontend/out
 ```
 
-You will need a browser wallet with a funded GenLayer Bradbury testnet account to submit a claim. Faucet: https://testnet-faucet.genlayer.foundation/
+You will need a browser wallet with a funded GenLayer Bradbury testnet account to submit a claim (claim test GEN from the wallet menu).
 
 ---
 
@@ -202,6 +200,4 @@ You will need a browser wallet with a funded GenLayer Bradbury testnet account t
 
 ## 9. Coordinates of record
 
-- Contract address: `0x2EA3a9aa16a57BD0F6f8d8ac5e20819772554a99`
-- Deploy transaction: https://explorer-bradbury.genlayer.com/tx/0x28054928aa482c92fa4202bfaa41ea7c6843ac9f562e356db39499d718ba38b1
-- Network: GenLayer Bradbury testnet
+- Network: GenLayer Bradbury testnet, a 12 by 12 grid (columns A through L, rows 1 through 12). The contract and deploy transaction are linked at the top of this guide.

@@ -145,6 +145,14 @@ export default function Cartouche({ coord, region, wallet, onClose, onClaimed }:
 
           <div className="cart-coord">Region {coord}</div>
 
+          {(phase === 'idle' || phase === 'wallet') && (
+            <div className="cart-flourish" aria-hidden="true">
+              <span className="cf-rule left" />
+              <span className="cf-mark">{'\u269C'}</span>
+              <span className="cf-rule" />
+            </div>
+          )}
+
           {/* Existing CANON region */}
           {isClaimed && phase === 'idle' && region && (
             <ReadView region={region} />
@@ -303,6 +311,11 @@ function VerdictView({
   const Icon = cls === 'canon' ? CheckCircle2 : cls === 'contested' ? AlertTriangle : XCircle
   return (
     <div className="verdict">
+      {cls === 'canon' && (
+        <div className="wax-stamp" aria-hidden="true">
+          <CheckCircle2 size={34} strokeWidth={1.4} />
+        </div>
+      )}
       <motion.div
         className={`verdict-seal ${cls}`}
         initial={{ scale: 0.2, opacity: 0, rotate: -24 }}
