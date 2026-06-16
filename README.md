@@ -4,7 +4,7 @@
 
 This document is written as a field guide for explorers: a numbered gazetteer of the world, its map legends, the law of the cartographer, and a catalogue of every survey instrument (public method) you may call. Read it the way you would read the marginalia of an old map.
 
-- Live atlas: https://atlas-PLACEHOLDER.pages.dev
+- Live atlas: https://atlas-2qv.pages.dev
 - Contract on the explorer: https://explorer-bradbury.genlayer.com/address/0x2EA3a9aa16a57BD0F6f8d8ac5e20819772554a99
 - Full contract source: [contracts/contract.py](contracts/contract.py)
 

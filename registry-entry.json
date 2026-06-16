@@ -1,0 +1,25 @@
+{
+  "name": "atlas",
+  "createdAt": "2026-06-16",
+  "concept": "On-chain AI canon-keeper for a shared fictional world: explorers claim a region of a persistent map and describe its lore, and an injection-resistant AI cartographer rules each claim CANON / CONTESTED / APOCRYPHA with a 0-100 coherence score against established world history under validator consensus, growing a single tamper-evident world atlas on-chain.",
+  "domain": "AI worldbuilding / lore-consistency adjudication",
+  "appArchetype": "persistent world-map view (you land on a living shared map and navigate region to region; the cartographic canvas is the primary surface with claims plotted on it, not a landing page or a feed)",
+  "artDirection": "Antique illuminated cartography",
+  "palette": {
+    "background": "#f4ecd8",
+    "accent": "#1f6f5c",
+    "notes": "Aged parchment vellum, sepia-ink linework, a verdant cartographer's-green accent with oxblood region borders, compass roses and contour hatching, illuminated drop-capitals, zero flat digital fills or glassy panels."
+  },
+  "fonts": {
+    "display": "Cardo",
+    "body": "EB Garamond",
+    "mono": "Spline Sans Mono"
+  },
+  "heroMotif": "an animated hand-drawn parchment map whose coastlines and contour hatching ink themselves in, with a slowly rotating compass rose and drifting sea stipple",
+  "layoutMotif": "cartographic canvas: a pannable parchment world map as the main surface with plotted region claims, a slim gazetteer side-margin of regions, and an illuminated claim cartouche that opens over the map; no hero, no stat strip",
+  "readmeShape": "explorer's gazetteer (a numbered regional field guide with map legends and an entry per public method)",
+  "repo": "https://github.com/nearar22/atlas",
+  "live": "https://atlas-2qv.pages.dev",
+  "contract": "0x2EA3a9aa16a57BD0F6f8d8ac5e20819772554a99",
+  "description": "Atlas is an on-chain AI canon-keeper for a shared fictional world drawn on a 12x12 grid, built on GenLayer, where the cartographer's ruling is the settlement itself. An explorer claims a region coordinate and writes its lore, and an injection-resistant AI cartographer rules the claim CANON, CONTESTED, or APOCRYPHA with a 0-100 coherence score against the established canon of neighbouring regions. A leader proposes the ruling and every validator re-runs it, agreeing on the ruling exactly and the coherence within tolerance. Deterministic guards check the coordinate, name, and lore and reject claimed tiles before the model, and a backstop clamps the score into its ruling band after. Only a CANON ruling occupies a tile and grows the atlas, while a static frontend stages the consensus."
+}
