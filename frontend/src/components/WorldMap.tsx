@@ -78,22 +78,24 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
       texCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
       texCtx.clearRect(0, 0, W, H)
 
-      // warm parchment base gradient
+      // warm parchment base gradient, deeper and more weathered
       const base = texCtx.createLinearGradient(0, 0, W, H)
-      base.addColorStop(0, '#f6efdc')
-      base.addColorStop(0.5, '#f1e7cd')
-      base.addColorStop(1, '#e9dcbb')
+      base.addColorStop(0, '#f0e6c8')
+      base.addColorStop(0.45, '#e8d9b2')
+      base.addColorStop(0.78, '#dfcca0')
+      base.addColorStop(1, '#d4bd8a')
       texCtx.fillStyle = base
       texCtx.fillRect(0, 0, W, H)
 
-      // broad uneven tint blooms (sun-aged unevenness)
-      for (let i = 0; i < 26; i++) {
+      // broad uneven tint blooms (sun-aged unevenness), richer and more numerous
+      for (let i = 0; i < 44; i++) {
         const bx = rnd(i * 3.1) * W
         const by = rnd(i * 5.7 + 2) * H
-        const br = (0.12 + rnd(i + 11) * 0.22) * Math.max(W, H)
+        const br = (0.1 + rnd(i + 11) * 0.26) * Math.max(W, H)
         const g = texCtx.createRadialGradient(bx, by, 0, bx, by, br)
-        const warm = rnd(i + 31) > 0.5
-        g.addColorStop(0, warm ? 'rgba(176,131,68,0.06)' : 'rgba(124,45,45,0.035)')
+        const tone = rnd(i + 31)
+        const col = tone > 0.62 ? 'rgba(176,131,68,0.16)' : tone > 0.32 ? 'rgba(124,45,45,0.09)' : 'rgba(90,64,30,0.1)'
+        g.addColorStop(0, col)
         g.addColorStop(1, 'rgba(176,131,68,0)')
         texCtx.fillStyle = g
         texCtx.beginPath()
@@ -101,51 +103,113 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
         texCtx.fill()
       }
 
-      // foxing: small age stains and speckles
-      for (let i = 0; i < 240; i++) {
+      // foxing: small age stains and speckles, denser and darker
+      for (let i = 0; i < 520; i++) {
         const sx = rnd(i * 1.7 + 4) * W
         const sy = rnd(i * 2.3 + 9) * H
-        const sr = 0.5 + rnd(i + 51) * 3.4
-        const a = 0.015 + rnd(i + 71) * 0.05
-        texCtx.fillStyle = `rgba(120, 84, 38, ${a})`
+        const sr = 0.5 + rnd(i + 51) * 4.2
+        const a = 0.04 + rnd(i + 71) * 0.11
+        texCtx.fillStyle = rnd(i + 91) > 0.4 ? `rgba(120, 84, 38, ${a})` : `rgba(124, 45, 45, ${a * 0.7})`
         texCtx.beginPath()
         texCtx.arc(sx, sy, sr, 0, Math.PI * 2)
         texCtx.fill()
       }
 
-      // a few darker water-stain rings near the edges
-      for (let i = 0; i < 7; i++) {
-        const ex = rnd(i * 9.2 + 1) > 0.5 ? rnd(i + 3) * W * 0.28 : W - rnd(i + 3) * W * 0.28
+      // larger irregular tea-stain blots with darker rims
+      for (let i = 0; i < 14; i++) {
+        const cx = rnd(i * 7.3 + 2) * W
+        const cy = rnd(i * 4.1 + 5) * H
+        const rr = 18 + rnd(i + 17) * 70
+        texCtx.save()
+        texCtx.beginPath()
+        const steps = 26
+        for (let s = 0; s <= steps; s++) {
+          const a = (s / steps) * Math.PI * 2
+          const wob = 1 + (rnd(i * 13 + s) - 0.5) * 0.5
+          const px = cx + Math.cos(a) * rr * wob
+          const py = cy + Math.sin(a) * rr * wob
+          if (s === 0) texCtx.moveTo(px, py)
+          else texCtx.lineTo(px, py)
+        }
+        texCtx.closePath()
+        texCtx.fillStyle = `rgba(120, 82, 40, ${0.04 + rnd(i + 4) * 0.05})`
+        texCtx.fill()
+        texCtx.strokeStyle = `rgba(96, 64, 30, ${0.07 + rnd(i + 9) * 0.06})`
+        texCtx.lineWidth = 1.4
+        texCtx.stroke()
+        texCtx.restore()
+      }
+
+      // darker water-stain rings near the edges, more visible
+      for (let i = 0; i < 11; i++) {
+        const ex = rnd(i * 9.2 + 1) > 0.5 ? rnd(i + 3) * W * 0.3 : W - rnd(i + 3) * W * 0.3
         const ey = rnd(i * 4.4 + 6) * H
-        const er = 30 + rnd(i + 13) * 90
-        texCtx.strokeStyle = `rgba(110, 78, 36, ${0.04 + rnd(i + 2) * 0.05})`
-        texCtx.lineWidth = 2 + rnd(i + 8) * 3
+        const er = 30 + rnd(i + 13) * 110
+        texCtx.strokeStyle = `rgba(104, 72, 32, ${0.1 + rnd(i + 2) * 0.1})`
+        texCtx.lineWidth = 2 + rnd(i + 8) * 4
         texCtx.beginPath()
         texCtx.arc(ex, ey, er, 0, Math.PI * 2)
         texCtx.stroke()
       }
 
-      // fine fibrous grain
-      for (let i = 0; i < 900; i++) {
+      // creases: faint folds across the sheet
+      texCtx.strokeStyle = 'rgba(90,64,30,0.08)'
+      texCtx.lineWidth = 1.2
+      for (let i = 0; i < 3; i++) {
+        const fx = (0.28 + i * 0.22) * W + (rnd(i + 30) - 0.5) * 40
+        texCtx.beginPath()
+        texCtx.moveTo(fx, 0)
+        for (let y = 0; y <= H; y += 16) {
+          texCtx.lineTo(fx + Math.sin(y * 0.02 + i) * 6, y)
+        }
+        texCtx.stroke()
+      }
+
+      // fine fibrous grain, stronger
+      for (let i = 0; i < 1500; i++) {
         const gx = rnd(i * 0.91 + 0.3) * W
         const gy = rnd(i * 1.13 + 0.7) * H
-        texCtx.fillStyle = rnd(i + 5) > 0.5 ? 'rgba(255,250,235,0.05)' : 'rgba(90,64,30,0.04)'
+        texCtx.fillStyle = rnd(i + 5) > 0.5 ? 'rgba(255,250,235,0.08)' : 'rgba(86,60,28,0.07)'
         texCtx.fillRect(gx, gy, 1, 1)
       }
 
       // paper drop-shadow: a soft dark inset lifting the chart off the desk
-      const lift = texCtx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.36, W / 2, H / 2, Math.max(W, H) * 0.62)
+      const lift = texCtx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.34, W / 2, H / 2, Math.max(W, H) * 0.62)
       lift.addColorStop(0, 'rgba(58,42,24,0)')
-      lift.addColorStop(1, 'rgba(58,42,24,0.05)')
+      lift.addColorStop(1, 'rgba(58,42,24,0.09)')
       texCtx.fillStyle = lift
       texCtx.fillRect(0, 0, W, H)
 
-      // vignette: darkened, worn edges
-      const vig = texCtx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.32, W / 2, H / 2, Math.max(W, H) * 0.72)
+      // vignette: darkened, worn edges, deeper for an aged museum look
+      const vig = texCtx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.74)
       vig.addColorStop(0, 'rgba(58,42,24,0)')
-      vig.addColorStop(1, 'rgba(58,42,24,0.26)')
+      vig.addColorStop(0.7, 'rgba(58,42,24,0.16)')
+      vig.addColorStop(1, 'rgba(46,32,16,0.42)')
       texCtx.fillStyle = vig
       texCtx.fillRect(0, 0, W, H)
+
+      // scorched, frayed edge darkening around the very rim
+      const edge = 0.045 * Math.min(W, H)
+      const eg = texCtx.createLinearGradient(0, 0, 0, edge)
+      eg.addColorStop(0, 'rgba(70,46,22,0.4)')
+      eg.addColorStop(1, 'rgba(70,46,22,0)')
+      texCtx.fillStyle = eg
+      texCtx.fillRect(0, 0, W, edge)
+      const eg2 = texCtx.createLinearGradient(0, H, 0, H - edge)
+      eg2.addColorStop(0, 'rgba(70,46,22,0.4)')
+      eg2.addColorStop(1, 'rgba(70,46,22,0)')
+      texCtx.fillStyle = eg2
+      texCtx.fillRect(0, H - edge, W, edge)
+      const eg3 = texCtx.createLinearGradient(0, 0, edge, 0)
+      eg3.addColorStop(0, 'rgba(70,46,22,0.4)')
+      eg3.addColorStop(1, 'rgba(70,46,22,0)')
+      texCtx.fillStyle = eg3
+      texCtx.fillRect(0, 0, edge, H)
+      const eg4 = texCtx.createLinearGradient(W, 0, W - edge, 0)
+      eg4.addColorStop(0, 'rgba(70,46,22,0.4)')
+      eg4.addColorStop(1, 'rgba(70,46,22,0)')
+      texCtx.fillStyle = eg4
+      texCtx.fillRect(W - edge, 0, edge, H)
     }
 
     const resize = () => {
@@ -172,9 +236,9 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
           const a = (k / rays) * Math.PI * 2 + hi * 0.2
           const isMain = k % 4 === 0
           ctx.strokeStyle = isMain
-            ? `rgba(124,45,45,${0.05 + phase * 0.035})`
-            : `rgba(74,54,34,${0.035 + phase * 0.03})`
-          ctx.lineWidth = isMain ? 0.8 : 0.5
+            ? `rgba(124,45,45,${0.12 + phase * 0.08})`
+            : `rgba(74,54,34,${0.08 + phase * 0.06})`
+          ctx.lineWidth = isMain ? 0.9 : 0.6
           ctx.beginPath()
           ctx.moveTo(hub.x, hub.y)
           ctx.lineTo(hub.x + Math.cos(a) * reach, hub.y + Math.sin(a) * reach)
@@ -194,8 +258,8 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
       ctx.save()
       ctx.translate(cx, cy)
       // wandering coastline blob
-      ctx.strokeStyle = 'rgba(74,54,34,0.12)'
-      ctx.lineWidth = 1
+      ctx.strokeStyle = 'rgba(74,54,34,0.28)'
+      ctx.lineWidth = 1.3
       ctx.beginPath()
       const steps = 60
       for (let s = 0; s <= steps; s++) {
@@ -210,11 +274,26 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
       ctx.closePath()
       ctx.stroke()
       // faint land tint
-      ctx.fillStyle = 'rgba(176,131,68,0.04)'
+      ctx.fillStyle = 'rgba(176,131,68,0.12)'
       ctx.fill()
+      // a tighter inked coastline echo just inside the shore (double line)
+      ctx.strokeStyle = 'rgba(74,54,34,0.16)'
+      ctx.lineWidth = 0.7
+      ctx.beginPath()
+      for (let s = 0; s <= steps; s++) {
+        const a = (s / steps) * Math.PI * 2
+        const wob = (Math.sin(a * 3 + seed) + Math.sin(a * 7 + seed * 1.7)) * scale * 0.12
+        const rr = (scale + wob) * 0.9
+        const px = Math.cos(a) * rr * 1.2
+        const py = Math.sin(a) * rr * 0.78
+        if (s === 0) ctx.moveTo(px, py)
+        else ctx.lineTo(px, py)
+      }
+      ctx.closePath()
+      ctx.stroke()
       // interior relief hatching (sketched hills)
-      ctx.strokeStyle = 'rgba(74,54,34,0.08)'
-      ctx.lineWidth = 0.6
+      ctx.strokeStyle = 'rgba(74,54,34,0.18)'
+      ctx.lineWidth = 0.7
       for (let h = 0; h < 5; h++) {
         const hy = (-0.4 + h * 0.18) * scale
         ctx.beginPath()
@@ -385,26 +464,31 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
       ctx.rotate(rot)
 
       // faint illuminated halo
-      const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, cr * 1.5)
-      halo.addColorStop(0, 'rgba(176,131,68,0.16)')
+      const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, cr * 1.6)
+      halo.addColorStop(0, 'rgba(176,131,68,0.28)')
+      halo.addColorStop(0.6, 'rgba(176,131,68,0.1)')
       halo.addColorStop(1, 'rgba(176,131,68,0)')
       ctx.fillStyle = halo
       ctx.beginPath()
-      ctx.arc(0, 0, cr * 1.5, 0, Math.PI * 2)
+      ctx.arc(0, 0, cr * 1.6, 0, Math.PI * 2)
       ctx.fill()
 
       ctx.strokeStyle = SEPIA
-      ctx.lineWidth = 1.2
+      ctx.lineWidth = 1.6
       ctx.beginPath()
       ctx.arc(0, 0, cr, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.lineWidth = 1.1
+      ctx.beginPath()
+      ctx.arc(0, 0, cr * 0.82, 0, Math.PI * 2)
       ctx.stroke()
       ctx.beginPath()
       ctx.arc(0, 0, cr * 0.66, 0, Math.PI * 2)
       ctx.stroke()
 
       // tick marks around the rose
-      ctx.strokeStyle = 'rgba(74,54,34,0.5)'
-      ctx.lineWidth = 0.8
+      ctx.strokeStyle = 'rgba(74,54,34,0.7)'
+      ctx.lineWidth = 0.9
       for (let k = 0; k < 32; k++) {
         const a = (k / 32) * Math.PI * 2
         const inner = k % 8 === 0 ? cr * 0.82 : cr * 0.92
@@ -440,15 +524,40 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
         ctx.lineTo(0, cr * 0.2)
         ctx.lineTo(-cr * 0.14, 0)
         ctx.closePath()
-        ctx.fillStyle = k === 0 ? OXBLOOD : 'rgba(74,54,34,0.7)'
+        ctx.fillStyle = k === 0 ? OXBLOOD : 'rgba(74,54,34,0.85)'
         ctx.fill()
+        ctx.strokeStyle = 'rgba(74,54,34,0.6)'
+        ctx.lineWidth = 0.6
+        ctx.stroke()
+        ctx.restore()
+      }
+      // cardinal letters N E S W, counter-rotated to stay upright
+      const letters = ['N', 'E', 'S', 'W']
+      ctx.fillStyle = 'rgba(74,54,34,0.85)'
+      ctx.font = `700 ${Math.max(8, cr * 0.16)}px 'Cardo', serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      for (let k = 0; k < 4; k++) {
+        const a = (k * Math.PI) / 2
+        const lx = Math.sin(a) * cr * 1.32
+        const ly = -Math.cos(a) * cr * 1.32
+        ctx.save()
+        ctx.translate(lx, ly)
+        ctx.rotate(-rot)
+        ctx.fillStyle = k === 0 ? OXBLOOD : 'rgba(74,54,34,0.8)'
+        ctx.fillText(letters[k], 0, 0)
         ctx.restore()
       }
       // gilded hub
       ctx.fillStyle = GOLD
       ctx.beginPath()
-      ctx.arc(0, 0, cr * 0.07, 0, Math.PI * 2)
+      ctx.arc(0, 0, cr * 0.08, 0, Math.PI * 2)
       ctx.fill()
+      ctx.strokeStyle = 'rgba(124,45,45,0.6)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.arc(0, 0, cr * 0.08, 0, Math.PI * 2)
+      ctx.stroke()
       ctx.restore()
     }
 
@@ -621,9 +730,9 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
     const drawMountains = (cx: number, cy: number, w: number, seed: number) => {
       ctx.save()
       ctx.translate(cx, cy)
-      ctx.strokeStyle = 'rgba(74,54,34,0.34)'
-      ctx.fillStyle = 'rgba(74,54,34,0.07)'
-      ctx.lineWidth = 1
+      ctx.strokeStyle = 'rgba(74,54,34,0.5)'
+      ctx.fillStyle = 'rgba(74,54,34,0.12)'
+      ctx.lineWidth = 1.1
       const peaks = 5
       const pw = w / peaks
       for (let p = 0; p < peaks; p++) {
@@ -685,7 +794,7 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
     // ---- scattered depth-sounding numerals in open water ----
     const drawSoundings = (count: number) => {
       ctx.save()
-      ctx.fillStyle = 'rgba(74,54,34,0.26)'
+      ctx.fillStyle = 'rgba(74,54,34,0.42)'
       ctx.font = `italic ${Math.max(7, Math.min(W, H) * 0.011)}px 'Spline Sans Mono', monospace`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -717,23 +826,23 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
       if (texCtx) ctx.drawImage(texCanvas, 0, 0, W, H)
 
       // 2. drifting sea stipple (uncharted frontier texture)
-      ctx.fillStyle = 'rgba(31, 111, 92, 0.05)'
+      ctx.fillStyle = 'rgba(31, 111, 92, 0.1)'
       const dx = Math.sin(drift * 0.004) * 6
       const dy = Math.cos(drift * 0.003) * 4
-      for (let i = 0; i < 460; i++) {
+      for (let i = 0; i < 720; i++) {
         const sx = (rnd(i) * W + dx + i * 0.13) % W
         const sy = (rnd(i + 99) * H + dy) % H
-        const r = 0.6 + rnd(i + 7) * 1.1
+        const r = 0.6 + rnd(i + 7) * 1.3
         ctx.beginPath()
         ctx.arc(sx, sy, r, 0, Math.PI * 2)
         ctx.fill()
       }
 
       // faint sea swell hatch lines drifting horizontally
-      ctx.strokeStyle = 'rgba(31,111,92,0.05)'
+      ctx.strokeStyle = 'rgba(31,111,92,0.1)'
       ctx.lineWidth = 1
-      for (let r = 0; r < 7; r++) {
-        const yy = (r / 7) * H + Math.sin(drift * 0.01 + r) * 4
+      for (let r = 0; r < 11; r++) {
+        const yy = (r / 11) * H + Math.sin(drift * 0.01 + r) * 4
         ctx.beginPath()
         for (let x = 0; x <= W; x += 8) {
           const wy = yy + Math.sin(x * 0.03 + drift * 0.02 + r * 1.3) * 3
@@ -769,7 +878,7 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
       drawSeaLabel(pad + gw * 0.86, pad + gh * 0.56, 'The Reach', Math.max(10, Math.min(gw, gh) * 0.024), 1.4)
 
       // 5. wavering contour rings (drawn coastlines inking in)
-      ctx.strokeStyle = 'rgba(74, 54, 34, 0.1)'
+      ctx.strokeStyle = 'rgba(74, 54, 34, 0.2)'
       ctx.lineWidth = 1
       const contours = 5
       for (let c = 0; c < contours; c++) {
@@ -807,7 +916,7 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
       drawWindHead(pad * 1.15, H - pad * 1.15, Math.min(W, H) * 0.032, drift)
 
       // 8. grid graticule
-      ctx.strokeStyle = 'rgba(74, 54, 34, 0.18)'
+      ctx.strokeStyle = 'rgba(74, 54, 34, 0.3)'
       ctx.lineWidth = 1
       const gridReveal = reduced ? 1 : Math.min(1, t / 60)
       for (let i = 0; i <= GRID_COLS; i++) {
@@ -854,8 +963,8 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
       }
 
       // coordinate labels A-L, 1-12
-      ctx.fillStyle = 'rgba(74, 54, 34, 0.55)'
-      ctx.font = `${Math.max(9, cw * 0.22)}px 'Spline Sans Mono', monospace`
+      ctx.fillStyle = 'rgba(74, 54, 34, 0.78)'
+      ctx.font = `600 ${Math.max(9, cw * 0.24)}px 'Spline Sans Mono', monospace`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       for (let i = 0; i < GRID_COLS; i++) {
@@ -870,6 +979,38 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
       // 9. claimed canon tiles, illustrated and illuminated
       const { regions: regs, hover: hv, selected: sel } = stateRef.current
       const claimed = new Set(regs.map((r) => r.coord))
+
+      // 8b. terra incognita: faint diagonal hatch + corner ticks on every unclaimed cell
+      ctx.save()
+      for (let col = 0; col < GRID_COLS; col++) {
+        for (let row = 0; row < GRID_ROWS; row++) {
+          const coord = String.fromCharCode(65 + col) + String(row + 1)
+          if (claimed.has(coord)) continue
+          const x = pad + col * cw
+          const y = pad + row * ch
+          // deterministic faint hatch, varied per cell so the frontier looks hand-drawn
+          const seed = col * 13.1 + row * 7.7
+          const dense = rnd(seed) > 0.55
+          ctx.strokeStyle = `rgba(74,54,34,${0.045 + rnd(seed + 2) * 0.03})`
+          ctx.lineWidth = 0.5
+          const gap = dense ? 6 : 9
+          ctx.beginPath()
+          for (let d = -ch; d < cw; d += gap) {
+            ctx.moveTo(x + d, y + ch)
+            ctx.lineTo(x + d + ch, y)
+          }
+          ctx.stroke()
+          // little corner registration ticks in the cell, very faint
+          ctx.strokeStyle = 'rgba(74,54,34,0.12)'
+          ctx.lineWidth = 0.6
+          const tk = Math.min(cw, ch) * 0.12
+          ctx.beginPath()
+          ctx.moveTo(x + 2, y + 2 + tk); ctx.lineTo(x + 2, y + 2); ctx.lineTo(x + 2 + tk, y + 2)
+          ctx.stroke()
+        }
+      }
+      ctx.restore()
+
       const now = performance.now()
       regs.forEach((r) => {
         const col = r.coord.charCodeAt(0) - 65
@@ -1019,6 +1160,17 @@ export default function WorldMap({ regions, onSelect, selected }: Props) {
 
       // 12. compass rose, slowly rotating, anchoring the rhumb network
       drawCompass(W - pad * 0.62, pad * 0.62, pad * 0.42, reduced ? 0 : t * 0.0015)
+
+      // 13. drifting parchment-light sheen sweeping slowly across the chart
+      if (!reduced) {
+        const sweep = ((drift * 0.12) % (W + 400)) - 200
+        const sg = ctx.createLinearGradient(sweep - 160, 0, sweep + 160, H)
+        sg.addColorStop(0, 'rgba(255,250,235,0)')
+        sg.addColorStop(0.5, 'rgba(255,250,235,0.08)')
+        sg.addColorStop(1, 'rgba(255,250,235,0)')
+        ctx.fillStyle = sg
+        ctx.fillRect(0, 0, W, H)
+      }
 
       if (running && !reduced) {
         t += 1

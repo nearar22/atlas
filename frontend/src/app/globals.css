@@ -44,9 +44,10 @@ body {
   color: var(--sepia-ink);
   background-color: var(--parchment);
   background-image:
-    radial-gradient(circle at 18% 12%, rgba(176, 131, 68, 0.12), transparent 45%),
-    radial-gradient(circle at 82% 84%, rgba(124, 45, 45, 0.08), transparent 50%),
-    radial-gradient(circle at 50% 50%, rgba(31, 111, 92, 0.05), transparent 60%);
+    radial-gradient(circle at 18% 12%, rgba(176, 131, 68, 0.2), transparent 45%),
+    radial-gradient(circle at 82% 84%, rgba(124, 45, 45, 0.13), transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(31, 111, 92, 0.07), transparent 60%),
+    linear-gradient(180deg, rgba(212, 189, 138, 0.0), rgba(196, 170, 116, 0.18));
   font-size: 17px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
