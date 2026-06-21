@@ -38,15 +38,20 @@ export function LegendBand() {
           {STEPS.map((s, i) => {
             const Icon = s.icon
             return (
-              <div key={s.title} className="rounded-lg border p-5" style={{ borderColor: 'var(--hairline-strong)' }}>
+              <div
+                key={s.title}
+                className="paper deckle group rounded-lg p-5 transition-all duration-300 hover:-translate-y-1"
+              >
                 <div className="flex items-center gap-3">
                   <span
-                    className="flex h-9 w-9 items-center justify-center rounded-full"
-                    style={{ background: 'rgba(31,111,120,0.14)' }}
+                    className="flex h-9 w-9 items-center justify-center rounded-full transition-transform duration-300 group-hover:scale-110"
+                    style={{ background: 'rgba(31,111,120,0.14)', boxShadow: 'inset 0 0 0 1px rgba(31,111,120,0.3)' }}
                   >
                     <Icon size={17} color="var(--teal)" aria-hidden="true" />
                   </span>
-                  <span className="font-mono text-[0.74rem] text-faded">0{i + 1}</span>
+                  <span className="font-display text-2xl leading-none" style={{ color: 'var(--gild)' }}>
+                    0{i + 1}
+                  </span>
                 </div>
                 <h3 className="mt-3 font-display text-xl text-ink">{s.title}</h3>
                 <p className="mt-1.5 text-[0.9rem] leading-relaxed text-sepia">{s.body}</p>

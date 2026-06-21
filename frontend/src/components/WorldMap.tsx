@@ -51,8 +51,21 @@ export default function WorldMap({ regions, onSelect, selected, justClaimed }: P
         >
           <TerrainDefs />
 
+          <defs>
+            <radialGradient id="chart-wash" cx="50%" cy="42%" r="72%">
+              <stop offset="0%" stopColor="rgba(241,231,207,0.6)" />
+              <stop offset="70%" stopColor="rgba(233,220,192,0.2)" />
+              <stop offset="100%" stopColor="rgba(124,100,60,0.12)" />
+            </radialGradient>
+            <linearGradient id="gild-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="var(--gild)" />
+              <stop offset="50%" stopColor="var(--gild-bright)" />
+              <stop offset="100%" stopColor="var(--gild)" />
+            </linearGradient>
+          </defs>
+
           {/* chart field background */}
-          <rect x={MARGIN} y={MARGIN} width={gridW} height={gridH} fill="rgba(241,231,207,0.35)" />
+          <rect x={MARGIN} y={MARGIN} width={gridW} height={gridH} fill="url(#chart-wash)" />
 
           {/* faint graticule */}
           <g opacity="0.6">
@@ -191,7 +204,7 @@ export default function WorldMap({ regions, onSelect, selected, justClaimed }: P
             )
           })}
 
-          {/* outer chart frame */}
+          {/* outer chart frame: ink border with an inset gold-leaf rule */}
           <rect
             x={MARGIN}
             y={MARGIN}
@@ -201,6 +214,16 @@ export default function WorldMap({ regions, onSelect, selected, justClaimed }: P
             stroke="var(--ink)"
             strokeWidth="1.6"
             opacity="0.5"
+          />
+          <rect
+            x={MARGIN + 4}
+            y={MARGIN + 4}
+            width={gridW - 8}
+            height={gridH - 8}
+            fill="none"
+            stroke="url(#gild-stroke)"
+            strokeWidth="1"
+            opacity="0.55"
           />
         </svg>
       </div>
@@ -212,8 +235,8 @@ export default function WorldMap({ regions, onSelect, selected, justClaimed }: P
 
       {/* offset title cartouche */}
       <div className="pointer-events-none absolute left-4 top-4 max-w-xs">
-        <div className="paper deckle pointer-events-auto rounded-md px-4 py-3">
-          <p className="font-mono text-[0.62rem] uppercase tracking-[0.24em] text-faded">Tabula Mundi</p>
+        <div className="paper gild-frame pointer-events-auto rounded-md px-4 py-3">
+          <p className="font-mono text-[0.62rem] uppercase tracking-[0.24em]" style={{ color: 'var(--gild)' }}>Tabula Mundi</p>
           <p className="font-display text-lg text-ink">The Shared World</p>
           <p className="mt-1 text-[0.84rem] leading-snug text-sepia">
             Click an uncharted cell to claim it. The Cartographer judges your lore against the canon under consensus.

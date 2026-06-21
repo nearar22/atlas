@@ -59,6 +59,7 @@ export function Masthead({
           Your instrument is on the wrong network. Switch to Bradbury Testnet to claim.
         </p>
       ) : null}
+      <div className="gild-rule gild-sheen" aria-hidden="true" />
     </header>
   )
 }
